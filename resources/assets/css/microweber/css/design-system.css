@@ -1,0 +1,394 @@
+/*
+ * design-system.css — Microweber design system tokens. Source of
+ * truth for colors, typography, spacing, touch targets, radius,
+ * elevation, and motion.
+ *
+ * Until the full @import load-order audit is complete, consumer
+ * files (public-touch.css, mobile-touch.css, live-edit-mobile.css)
+ * duplicate the same :root token block inline at the top. This
+ * file is the canonical spec; a contract test pins every token
+ * here to be present in the consumer files so they stay in sync.
+ */
+
+:root {
+    /* ============================================================
+     * Color tokens — Light Mode (AI-284 WCAG AA audit applied)
+     * ============================================================
+     *
+     * Every text color in this block has been verified ≥ 4.5:1 contrast
+     * against `--color-surface: #ffffff` per WCAG 2.1 SC 1.4.3 (Level
+     * AA, normal text). Audit ratios (foreground vs #ffffff):
+     *
+     *   #111827 (text-primary)   = 17.74:1  ✓ AAA
+     *   #4b5563 (text-secondary) =  7.56:1  ✓ AAA (gray-600)
+     *   #6b7280 (text-muted)     =  4.83:1  ✓ AA  (gray-500)
+     *   #0d6efd (primary)        =  4.66:1  ✓ AA
+     *
+     * `--color-text-muted` was previously `#9ca3af` (gray-400, 2.85:1
+     * → fails AA). Bumped to gray-500 (`#6b7280`). `--color-text-
+     * secondary` moved to gray-600 (`#4b5563`) so the muted/secondary
+     * visual distinction is preserved. AI-284 contrast checker script
+     * (tests/Unit/Template/DesignSystemContrastTest.php) pins every
+     * text token to ≥ 4.5:1 against its expected background — runs in
+     * the standard `phpunit --testsuite=Unit` pass.
+     */
+    --color-primary: #0d6efd;
+    --color-primary-hover: #0b5ed7;
+    --color-success: #22c55e;
+    --color-error: #ef4444;
+    --color-warning: #f59e0b;
+
+    --color-surface: #ffffff;
+    --color-surface-raised: #f8f9fa;
+
+    --color-text-primary: #111827;
+    --color-text-secondary: #4b5563;
+    --color-text-muted: #6b7280;
+
+    --color-border: #d1d5db;
+    --color-border-focus: #0d6efd;
+
+    /* Surface-specific color tokens — kept distinct from base text
+       tokens so footer text and product titles can't share a value.
+       Falls back to template-defined footer text color when available
+       so white-footer templates (Big2) get dark text. */
+    --color-footer-text: var(--mw-footer-text-color, #F8F9FA);
+    /* AI-210 (task-2026-05-13-c3a280) — product title resolves to
+       primary text color so the public link palette stays harmonious
+       across product cards, headings, and body copy. Removes the
+       warm-orange outlier flagged by tester (Big2 hardcoded #F4A261
+       vs Bootstrap #F8F9FA footer). */
+    --color-product-title: var(--color-text-primary);
+    --color-product-title-hover: var(--color-primary);
+
+    /* ============================================================
+     * Typography tokens
+     *
+     * AI-283: full H1→H6 + Body + Small scale. The legacy `--text-*`
+     * tokens below are kept as aliases pointing at the canonical
+     * `--font-size-*` tokens so any consumer using either name keeps
+     * working. New code should use `--font-size-*` and the two
+     * line-height tokens.
+     * ============================================================ */
+    --font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+    --font-size-h1: 32px;
+    --font-size-h2: 28px;
+    --font-size-h3: 24px;
+    --font-size-h4: 20px;
+    --font-size-h5: 18px;
+    --font-size-h6: 16px;
+    --font-size-body: 16px;
+    --font-size-small: 14px;
+
+    --line-height-heading: 1.25;
+    --line-height-body: 1.5;
+
+    /* Legacy aliases — old consumers (compiled bundles, blade inline
+       styles written before AI-283) reference these names. Kept until
+       the next bundle build sweep so removing them doesn't surprise
+       a downstream stylesheet. */
+    --text-h1-size: var(--font-size-h1);
+    --text-h1-line: var(--line-height-heading);
+    --text-h1-weight: 700;
+
+    --text-h2-size: var(--font-size-h2);
+    --text-h2-line: var(--line-height-heading);
+    --text-h2-weight: 600;
+
+    --text-h3-size: var(--font-size-h3);
+    --text-h3-line: var(--line-height-heading);
+    --text-h3-weight: 600;
+
+    --text-body-size: var(--font-size-body);
+    --text-body-line: var(--line-height-body);
+    --text-body-weight: 400;
+
+    --text-label-size: var(--font-size-small);
+    --text-label-line: 1.4;
+    --text-label-weight: 500;
+
+    --text-small-size: var(--font-size-small);
+    --text-small-line: 1.4;
+    --text-small-weight: 400;
+
+    --text-button-size: var(--font-size-body);
+    --text-button-line: 1.0;
+    --text-button-weight: 600;
+
+    /* ============================================================
+     * Spacing tokens — 8px-based scale (AI-285)
+     * ============================================================
+     *
+     * Eight-step canonical scale per AI-285 acceptance:
+     *   --space-1: 4px   half-step (icon padding, badge insets)
+     *   --space-2: 8px   base unit
+     *   --space-3: 12px
+     *   --space-4: 16px
+     *   --space-5: 24px
+     *   --space-6: 32px
+     *   --space-7: 48px  (AI-285 — was missing)
+     *   --space-8: 64px
+     *
+     * The --space-11 / --space-12 entries below the scale are kept
+     * because they alias semantic targets (44px = touch-target floor,
+     * 96px = hero block spacing). They're not part of the linear
+     * scale and shouldn't be renamed to --space-9/10.
+     *
+     * Component padding aliases (--space-card/-form/-modal) are
+     * semantic names that point at the canonical scale steps. Use
+     * these in component CSS rather than hardcoding `padding: 16px`
+     * — switching a component's density later becomes a one-token
+     * change instead of a project-wide sweep.
+     */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+    --space-7: 48px;
+    --space-8: 64px;
+    --space-11: 44px;
+    --space-12: 96px;
+
+    /* Semantic component-padding aliases (AI-285 acceptance #4). */
+    --space-card: var(--space-4);
+    --space-form: var(--space-5);
+    --space-modal: var(--space-6);
+
+    /* Semantic alias for --space-11 — WCAG 2.5.5 floor. */
+    --touch-target-min: 44px;
+
+    /* ============================================================
+     * Responsive breakpoint tokens (AI-286)
+     * ============================================================
+     *
+     * Six explicit breakpoint stops aligned with Bootstrap 5's
+     * defaults plus an --breakpoint-xxl bump to 1440px for the wide
+     * desktop class the AI-286 audit asked us to support.
+     *
+     * These tokens make breakpoint values referenceable from
+     * JavaScript via `getComputedStyle(document.documentElement)
+     * .getPropertyValue('--breakpoint-md')` and from blade Style
+     * blocks, so a single source of truth replaces hardcoded
+     * `@media (min-width: 768px)` literals.
+     *
+     * Pinned by DesignSystemBreakpointsContractTest.
+     */
+    --breakpoint-xs: 0;
+    --breakpoint-sm: 576px;
+    --breakpoint-md: 768px;
+    --breakpoint-lg: 992px;
+    --breakpoint-xl: 1200px;
+    --breakpoint-xxl: 1440px;
+
+    /* ============================================================
+     * Border radius tokens
+     * ============================================================ */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+
+    /* ============================================================
+     * Elevation (shadow) tokens (AI-289)
+     * ============================================================
+     *
+     * Six-step elevation scale (sm/md/lg/xl + the legacy 1/2/3
+     * aliases below for compat). Shadows grow in spread + offset so
+     * higher elevations read as "further off the surface" — pair
+     * with the z-index scale to avoid visual depth contradicting
+     * stacking order (a popover with shadow-xl but z-index 10 below
+     * a card with shadow-sm at z-index 30 reads as wrong).
+     *
+     * Z-index scale uses semantic targets (modal=100, toast=200) so
+     * future stacking changes are a one-token edit rather than a
+     * project-wide grep. The 0/10/20/30/40/50 lower steps are for
+     * in-flow elements (sticky headers, fixed navs).
+     */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.15);
+
+    /* Legacy aliases — pre-AI-289 consumers use these names. */
+    --shadow-1: var(--shadow-sm);
+    --shadow-2: var(--shadow-md);
+    --shadow-3: var(--shadow-lg);
+
+    --z-base: 0;
+    --z-sticky: 10;
+    --z-dropdown: 20;
+    --z-fixed: 30;
+    --z-overlay: 40;
+    --z-popover: 50;
+    --z-modal: 100;
+    --z-toast: 200;
+
+    /* ============================================================
+     * Motion tokens (AI-288)
+     * ============================================================
+     *
+     * Duration scale audit-aligned (was 150/300/500 in the legacy
+     * block; AI-288 spec is 150/250/350 which reads as snappier on
+     * modern devices). The three easing curves cover the three
+     * canonical interaction patterns:
+     *   --ease-default — standard ease in-out for entry/exit
+     *   --ease-in      — accelerate to leaving screen (exit)
+     *   --ease-out     — decelerate into rest (entry)
+     */
+    --duration-fast: 150ms;
+    --duration-normal: 250ms;
+    --duration-slow: 350ms;
+    --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-in: cubic-bezier(0.4, 0, 1, 1);
+    --ease-out: cubic-bezier(0, 0, 0.2, 1);
+
+    /* ============================================================
+     * Icon size scale (AI-290)
+     * ============================================================
+     *
+     * Standardizes icon sizing on a five-step scale matching the
+     * AI-283 typography vertical rhythm (icons inside body text use
+     * --icon-size-sm = 16px, which equals --font-size-h6, so the
+     * glyph and the surrounding text share a baseline).
+     *
+     * The project currently ships a mix of FontAwesome 6, Material
+     * Design Icons (mdi-*), and inline SVG. Per AI-290 audit recommendation
+     * the canonical icon library is FontAwesome 6, but the
+     * per-template sweep to migrate every mdi-* and image icon to
+     * fa-* is out of scope for this token PR — see AI-251 (icon
+     * consolidation) for the broader migration ticket.
+     */
+    --icon-size-xs: 12px;
+    --icon-size-sm: 16px;
+    --icon-size-md: 20px;
+    --icon-size-lg: 24px;
+    --icon-size-xl: 32px;
+
+    /* ============================================================
+     * Button state tokens (AI-291)
+     * ============================================================
+     *
+     * Focus ring uses `--color-border-focus` (already defined) so the
+     * focus indicator matches the form-input focus border color and
+     * inherits the dark-mode override automatically.
+     */
+    --btn-focus-ring-width: 2px;
+    --btn-focus-ring-offset: 2px;
+    --btn-active-scale: 0.98;
+    --btn-disabled-opacity: 0.5;
+
+    /* ============================================================
+     * Component tokens (AI-287)
+     * ============================================================
+     *
+     * Primary button   — 6px radius, 8px/16px padding (default size)
+     * Secondary button — 6px radius, 6px/12px padding, outline only
+     * Card             — 8px radius, 16px padding, soft elevation-1
+     *
+     * Token names use the `--btn-primary-*` / `--btn-secondary-*` /
+     * `--card-*` pattern so a downstream consumer can see at a glance
+     * which component it's reading. `--card-padding` references the
+     * AI-285 semantic alias `--space-card` (which itself resolves to
+     * `--space-4`, 16px) so the AI-287 card padding spec rides on
+     * top of the canonical 8-px spacing scale — no parallel hardcoded
+     * value to drift independently.
+     *
+     * Pinned by DesignSystemComponentsContractTest.
+     */
+    --btn-primary-radius: 6px;
+    --btn-primary-padding-y: 8px;
+    --btn-primary-padding-x: 16px;
+
+    --btn-secondary-radius: 6px;
+    --btn-secondary-padding-y: 6px;
+    --btn-secondary-padding-x: 12px;
+
+    --card-radius: 8px;
+    --card-padding: var(--space-card);
+    --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+    /* ============================================================
+     * Form-element tokens (AI-292)
+     * ============================================================
+     *
+     * Input height = --touch-target-min so all form controls satisfy
+     * the WCAG 2.5.5 / iOS HIG 44×44 touch-target floor without
+     * needing a per-control override. Label + helper-text font sizes
+     * ride on top of the AI-283 typography scale; their colors reuse
+     * the AI-284 text tokens that already cleared WCAG AA contrast.
+     *
+     * Focus shadow uses an `rgba()` literal of the primary blue
+     * because CSS doesn't let us interpolate `var(--color-primary)`
+     * with an opacity inside `box-shadow`. Kept in sync manually with
+     * the `--color-primary` hex via DesignSystemFormElementsContractTest.
+     *
+     * --input-padding-x is the inline padding so a 44px-tall input
+     * still reads as touch-comfortable; the AI-285 `--space-3`
+     * (12px) is the canonical value for this — referenced via the
+     * scale alias, not hardcoded.
+     */
+    --input-height: var(--touch-target-min);
+    --input-border-width: 1px;
+    --input-radius: 6px;
+    --input-padding-x: var(--space-3);
+    --input-focus-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
+
+    --label-font-size: var(--font-size-small);
+    --label-font-weight: 500;
+    --label-color: var(--color-text-secondary);
+
+    --helper-text-font-size: 12px;
+    --helper-text-color: var(--color-text-muted);
+
+    /* ============================================================
+     * Footer tokens (AI-294)
+     * ============================================================
+     *
+     * Pre-AI-294 the footer rendered at 664px on /shop mobile (77%
+     * of an 844px viewport). The audit asked for a compressed
+     * mobile rhythm: 40px top / 24px bottom padding and a column-
+     * gap drop from `mb-4` (24px) to --space-2 (8px) so the three
+     * stacked columns squeeze without clipping content.
+     *
+     * Tokens — not hardcoded — so a future footer density change is
+     * a one-token edit. --footer-max-height-mobile is a documented
+     * target (240px per acceptance #1) pinned by the contract test;
+     * we deliberately don't apply it as CSS max-height because that
+     * would CLIP address/contact blocks rather than compress them.
+     */
+    --footer-padding-top: 40px;
+    --footer-padding-bottom: 24px;
+    --footer-column-gap-mobile: var(--space-2);
+    --footer-max-height-mobile: 240px;
+}
+
+/*
+ * Dark Mode token overrides
+ *
+ * Cover all three theme-switching mechanisms used in this project:
+ *   .fi.dark              — Filament v5 admin panels
+ *   [data-bs-theme="dark"] — Bootstrap-template public pages
+ *   html.dark             — Public-side dark mode toggle
+ */
+.dark,
+.fi.dark,
+[data-bs-theme="dark"],
+html.dark {
+    --color-surface: #111827;
+    --color-surface-raised: #1f2937;
+
+    --color-text-primary: #f9fafb;
+    --color-text-secondary: #9ca3af;
+    --color-text-muted: #6b7280;
+
+    --color-border: #374151;
+    --color-border-focus: #60a5fa;
+
+    --color-footer-text: #d1d5db;
+    /* AI-210 — dark mode also routes product title through primary
+       text so the link palette stays consistent in both themes. */
+    --color-product-title: var(--color-text-primary);
+    --color-product-title-hover: var(--color-primary);
+}

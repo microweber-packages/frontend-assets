@@ -1,0 +1,289 @@
+#tree > ul{
+    padding-bottom: 25px;
+}
+
+#domtree .ui-resizable-s:after{
+    content: '...';
+    color: #a4a4a4;
+    font-size: 17px;
+    line-height: 3px;
+}
+#domtree .ui-resizable-s{
+    position: sticky;
+    background-color: #eee;
+    text-align: center;
+    height: 12px;
+    bottom: 0;
+}
+#domtree{
+    max-height: 220px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+#domtree .mw-domtree{
+    min-height: calc(100% - 30px);
+    min-height: -webkit-calc(100% - 30px);
+}
+
+.mw-domtree li.selected > span {
+    padding-inline-start: 5px;
+}
+
+.mw-domtree li.selectable-true{
+    cursor:pointer;
+}
+.mw-domtree li.selectable-false{
+    cursor: default;
+    opacity:.8;
+}
+.mw-domtree li{
+    list-style: none;
+}
+.mw-domtree li li{
+    padding-inline-start: 10px;
+}
+.mw-domtree ul{
+    display: none;
+}
+.mw-domtree .expand > ul{
+    display: block;
+}
+
+.mw-domtree-item-label .mw_module_settings_sidebar_icon,
+.mw-domtree-item-label svg{
+    width: 19px;
+    height: 19px;
+}
+.mw-domtree-item-label .mw_module_settings_sidebar_icon {
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    position: relative;
+    margin: 0 5px 0 5px;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.mw-domtree-item-label{
+    display: inline-block;
+    width: 90%;
+    width: -webkit-calc(100% - 20px);
+    width: calc(100% - 20px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+}
+
+.mw-domtree{
+    text-align: left;
+    direction: ltr;
+}
+
+.mw-domtree-item-opener{
+    --size: 14px;
+    --color: red;
+    display: inline-block;
+    width: var(--size);
+    height: var(--size);
+    border-radius: 3px;
+    cursor: pointer;
+    vertical-align: top;
+    position: relative;
+    top: 10px;
+    margin-inline-end: 5px;
+}
+
+.mw-domtree-item-opener:after{
+    content: '';
+    transition: .3s;
+    position: relative;
+    display: inline-block;
+    background-image: url("data:image/svg+xml,%0A%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 -960 960 960' fill='%23999'%3E%3Cpath d='m321-80-71-71 329-329-329-329 71-71 400 400L321-80Z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-size: contain;
+    width: var(--size);
+    height: var(--size);
+
+}
+.expand > .mw-domtree-item-opener:after{
+    transform: rotate(90deg);
+}
+
+
+
+html.dark .mw-module-settings-sidebar-icon-background-image{
+    filter: invert(1)
+}
+
+/* ====================================================================
+   task-2026-05-16-cf3fa6 / AI-709 — Layers panel rich row labels.
+
+   Layout (left → right):
+     [icon] <tag> [.class] ['preview text']  ............  [Edit]
+       └───────── .mw-domtree-item-element-label ──┘     └ .mw-domtree-item-label
+
+   The element-label is the row's primary identity; the .mw-domtree-
+   item-label (component affordance — "Edit", module name, etc.) is
+   pushed to the right edge so the row reads as identity-first.
+
+   Selected row gets a 2px --ese-accent left bar + --ese-surface-hover
+   bg (matches the ESE selected-element-indicator from spec §F3.3).
+
+   Indentation per nesting level uses var(--space-sm) (φ-scale token
+   from ESE slice 1.1). Falls back to 8px when --space-sm is
+   unavailable (the Layers controlBox renders outside .mw-live-edit-
+   page in some contexts; the fallback keeps the indent sane).
+
+   ESE tokens (--ese-accent, --ese-surface-hover, --ese-text-muted,
+   --space-sm, --font-control) are defined at :root in
+   `element-style-editor.css` so they resolve inside the controlBox
+   even though the box DOM lives outside .mw-live-edit-page.
+   ==================================================================== */
+
+.mw-domtree li {
+    display: flex;
+    flex-direction: column;
+}
+
+.mw-domtree li > .mw-domtree-item-opener,
+.mw-domtree li > .mw-domtree-item-element-label,
+.mw-domtree li > .mw-domtree-item-label {
+    /* element-label + component-label sit on the same row */
+}
+
+.mw-domtree li {
+    /* Row "header" container — opener + element-label + component-label.
+       Use grid so component-label can right-align without floats. */
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    column-gap: var(--space-sm, 8px);
+    padding-block: 4px;
+    padding-inline: var(--space-sm, 8px);
+    border-inline-start: 2px solid transparent; /* selected-row accent slot */
+    position: relative;
+}
+
+/* nested <ul> wraps to a row spanning all three columns */
+.mw-domtree li > ul {
+    grid-column: 1 / -1;
+    padding-inline-start: var(--space-sm, 8px);
+}
+
+/* The element-label is the row's primary identity — center column,
+   truncates at 32-ish chars via overflow + ellipsis. */
+.mw-domtree-item-element-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--font-control, 13px);
+    color: var(--ese-text, currentColor);
+}
+
+.mw-domtree-item-icon {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ese-text-muted, #8a8a8a);
+}
+
+.mw-domtree-tag {
+    font-weight: 500;
+    color: var(--ese-text, currentColor);
+}
+
+.mw-domtree-class {
+    color: var(--ese-accent, #182433);
+    font-weight: 400;
+}
+
+.mw-domtree-preview {
+    color: var(--ese-text-muted, #8a8a8a);
+    font-style: italic;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+/* The existing .mw-domtree-item-label is now the component affordance
+   slot (Edit / module name). Right-aligned at row's end column. */
+.mw-domtree-item-element-label + .mw-domtree-item-label {
+    /* AI-709: tighten the original 14px font + the calc(100% - 20px)
+       width — they belonged to the old "label-is-the-only-content"
+       shape. Now the label is just the affordance chip. */
+    width: auto;
+    font-size: var(--font-label, 11px);
+    color: var(--ese-text-muted, #8a8a8a);
+    padding-inline: 6px;
+    flex-shrink: 0;
+}
+
+/* Selected row: 2px --ese-accent left bar + --ese-surface-hover bg.
+   Matches the ESE selected-element-indicator spec §F3.3. */
+.mw-domtree li.selected {
+    border-inline-start-color: var(--ese-accent, #182433);
+    background-color: var(--ese-surface-hover, rgba(0, 0, 0, 0.04));
+}
+
+html.dark .mw-domtree li.selected {
+    background-color: var(--ese-surface-hover, rgba(255, 255, 255, 0.06));
+}
+
+/* ====================================================================
+   task-2026-05-28-4b9d88 / AI-1223 — Layers panel keyboard a11y +
+   ARIA tree + touch targets.
+
+   - Rows: 44px min-height (WCAG 2.5.5 touch target).
+   - Opener icon: 44x44 hit area via padding (visual 14x14 preserved
+     via the existing --size var + pseudo-element). The opener has
+     aria-hidden="true" so AT consumes the row's accessible name.
+   - Focus ring on the treeitem (tabindex=0 carrier) — visible at
+     all viewports + light/dark.
+   ==================================================================== */
+
+.mw-domtree li[role="treeitem"] {
+    min-height: 44px;
+}
+
+.mw-domtree li[role="treeitem"]:focus {
+    outline: 2px solid var(--ese-accent, #182433);
+    outline-offset: -2px;
+}
+
+.mw-domtree li[role="treeitem"]:focus:not(:focus-visible) {
+    outline: none;
+}
+
+.mw-domtree li[role="treeitem"]:focus-visible {
+    outline: 2px solid var(--ese-accent, #182433);
+    outline-offset: -2px;
+}
+
+.mw-domtree-item-opener {
+    /* 44x44 hit target; visual chevron stays 14x14 via ::after. */
+    width: 44px;
+    height: 44px;
+    top: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mw-domtree-item-opener:after {
+    /* Keep the visual chevron at the original --size; only the hit
+       area expands. */
+    width: var(--size);
+    height: var(--size);
+}

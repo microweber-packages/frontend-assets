@@ -1,0 +1,1005 @@
+.mw-bg-image-handles{
+    position: absolute;
+    z-index: 999;
+    pointer-events: none;
+    .mw-le-handle-menu .mw-le-handle-menu-buttons {
+        pointer-events: all;
+        opacity: 1;
+        position: absolute;
+        top: 50px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #fff;
+        color: #111;
+    }
+
+}
+
+.mw-handle-item {
+    font-family: Inter, sans-serif;
+    font-size: 14px;
+    &.mw-le-resizable{
+        position: absolute;
+    }
+    position: absolute;
+    z-index: 998;
+    cursor: default;
+    -webkit-user-select: none;
+    user-select: none;
+    border: 3px solid #0078ff;
+    transition: opacity .2s;
+    pointer-events: none;
+    & > *{
+        pointer-events: all;
+    }
+
+    &.mw-handle-item-interaction-handle{
+        pointer-events: none;
+
+    }
+
+    &.mw-handle-item-dragging {
+        border-color: transparent;
+
+        * {
+            opacity: 0 !important;
+        }
+    }
+
+    &.mw-handle-item-hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        display: none !important;
+    }
+
+
+    .mw-handlemenu-item {
+        pointer-events: all;
+    }
+
+    .mw-le-resizer.mw-le-resizer-b:before,
+    .mw-le-resizer.mw-le-resizer-b:after,
+    .mw-le-resizer.mw-le-resizer-r:after,
+    .mw-le-resizer:not(.mw-le-resizer-r, .mw-le-resizer-b) {
+        display: none;
+
+    }
+}
+
+.mw-draggable-helper {
+    position: absolute;
+    z-index: 10;
+    pointer-events: none;
+    .mw-element-is-dragged{
+        opacity: 1;
+        pointer-events: none;
+    }
+}
+
+/*  Handles content  */
+
+$darkBG: rgb(24 36 51);
+$lightBG: #ffffff;
+
+$bg: $lightBG;
+
+$handleHeight: 38;
+$handleholderHeight: 56;
+
+
+:root{
+    --dark-bg: rgb(24 36 51);;
+    --light-bg: white;
+}
+
+.mw-handle-item-menus-holder{
+
+
+    position: absolute;
+
+
+}
+
+#mw-handle-item-element-menu {
+    display: flex;
+    align-items: center;
+}
+
+#mw-handle-item-layout-root{
+    .mw-handle-item-menus-holder{
+
+        top: 10px;
+        right: 10px;
+        left: auto;
+
+
+
+    }
+}
+
+/* task-2026-10-01-layoutcorner — compact layout handle. When a child of the
+   layout is selected (you're editing the layout) the ⋮/settings cluster stays
+   pinned in the layout's top-right corner (the holder is already anchored there)
+   and collapses to a small ICON-ONLY pill so it doesn't compete with the
+   element/module handle. (Full handle on hover; hidden entirely while editing
+   text.) We shrink box sizes + drop the text labels rather than transform:scale
+   — the holder sits in a context where transform is ignored, and crisp small
+   icons beat a blurry scale. */
+.mw-handle-item.mw-layout-handle-compact #mw-handle-item-layout-root {
+    .mw-handle-item-menus-holder {
+        padding: 3px !important;
+        border-radius: 9px;
+        gap: 1px;
+        opacity: 0.92;
+        transition: opacity .12s ease, box-shadow .12s ease;
+    }
+    .mw-handle-item-menus-holder:hover {
+        opacity: 1;
+    }
+
+    /* Icon-only: the inline "Add layout" / "More" text labels overlapped badly
+       at this size — hide them and keep just the glyphs. */
+    .mw-le-handle-menu-button-content-title {
+        display: none !important;
+    }
+
+    .mw-le-handle-menu-button {
+        width: 26px !important;
+        height: 26px !important;
+        min-width: 26px !important;
+        margin: 0 1px !important;
+        padding: 0 !important;
+        border-radius: 6px !important;
+        font-size: 12px !important;
+    }
+
+    /* The "Add layout" button is normally a wide text pill — square it off so it
+       matches the other icon buttons in compact mode. */
+    .mw-le-handle-menu-button.mw-handle-button-wide {
+        display: inline-flex !important;
+        width: 26px !important;
+        height: 26px !important;
+        border: 0 !important;
+        text-align: center !important;
+        justify-content: center !important;
+    }
+
+    .mw-le-handle-menu-button svg {
+        width: 15px !important;
+        height: 15px !important;
+    }
+
+    /* The ⋮ dropdown (.mw-le-handle-menu-button-sub-menu) is nested INSIDE the
+       inline "More" button, so the icon-only shrink rules above would also
+       collapse its rows to 26px squares with hidden labels — leaving a blank
+       white panel (text present but no-width / display:none). Restore the
+       dropdown items to their normal full-width text rows. Higher specificity
+       (extra .sub-menu class) so this wins over the shrink rules above. */
+    .mw-le-handle-menu-button-sub-menu .mw-le-handle-menu-button {
+        width: 100% !important;
+        height: auto !important;
+        min-width: 0 !important;
+        margin: 0 2px !important;
+        padding: 8px 10px !important;
+        border-radius: 3px !important;
+        font-size: 19px !important;
+    }
+    .mw-le-handle-menu-button-sub-menu .mw-le-handle-menu-button-content-title {
+        display: block !important;
+    }
+    .mw-le-handle-menu-button-sub-menu .mw-le-handle-menu-button svg {
+        width: 25px !important;
+        height: 25px !important;
+    }
+}
+
+.mw-handle-item {
+
+    .mw-handle-item-menus-holder, .mw-le-handle-menu-button-sub-menu{
+
+        height: #{$handleholderHeight}px;
+        padding: 11px!important;
+        padding-bottom: 9px !important;
+        display: inline-flex;
+        border-radius: 7px;
+        border: 1px solid transparent;
+        box-shadow: rgba(17, 17, 26, 0.1) 0px 4px 16px, rgba(17, 17, 26, 0.05) 0px 8px 32px;
+        background-color: var(--light-bg);
+        /* task-2026-06-12 — fade the box chrome in/out with the buttons so an
+           idle (non-active) handle never shows an empty white box. */
+        transition: background-color .2s ease, box-shadow .2s ease, border-color .2s ease;
+
+        /* task-2026-05-27-df6d28 / AI-1170: 32px → 44px for WCAG 2.5.5 */
+        .mw-le-handle-menu-button {
+            display: inline-flex;
+            width: 44px;
+            height: 44px;
+            margin: 0 2px;
+            border-radius: 3px;
+            cursor: pointer;
+            text-align: center;
+            justify-content: center;
+            align-items: center;
+            transition: .3s;
+            font-size: 19px;
+
+            &.mw-handle-button-wide {
+                width: auto;
+                white-space: nowrap;
+                display: block;
+                text-align: left;
+                border: 1px solid #eee;
+                padding: 7px 10px 7px 5px !important;
+                height: auto;
+                margin: 2px;
+
+                * {
+                    vertical-align: middle;
+                }
+            }
+
+            &:hover {
+                background-color: #8f8f8f5b;
+            }
+
+            &.mw-handle-drag-button {
+                cursor: grab;
+            }
+        }
+
+    }
+
+    .mw-le-handle-menu-button-sub-menu {
+        padding: 4px 6px 4px 6px !important;
+        top: 40px;
+        right: -4px;
+
+    }
+}
+
+.mw-handle-item {
+    .mw-handle-item-menus-holder, .mw-le-handle-menu-button-sub-menu{
+        background-color: var(--light-bg);
+        color: rgb(0, 0, 0);
+    }
+}
+
+html.dark, html[data-mw-theme="dark"]{
+    .mw-handle-item {
+        .mw-handle-item-menus-holder, .mw-le-handle-menu-button-sub-menu{
+            background-color: var(--dark-bg);
+            color: white;
+
+            /* AI-726 / task-2026-06-05-fte726 — the floating element toolbar
+               (this dark chip) disappears into dark page surfaces in dark mode:
+               a dark hero image or black <section> leaves no surface contrast
+               to anchor against, and the base soft shadow (rgba(17,17,26,.1))
+               is invisible on dark.
+               Per the ticket's recommended option 2, keep the dark chip but add
+               a 1px light ring + a strong drop shadow so it separates from ANY
+               page surface — WCAG AA non-text contrast 3:1 via the ring. The
+               border slot is already declared `1px solid transparent` above, so
+               we only colour it here. Light mode is untouched. */
+            border-color: rgba(255, 255, 255, 0.18);
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18),
+                0 8px 24px rgba(0, 0, 0, 0.5);
+        }
+    }
+}
+
+/* task-2026-06-12 — "see only settings, not the white box": the handle's setting
+   buttons fade in only on `.mw-handle-active` (opacity 0 → 1 below), but the box
+   (.mw-handle-item-menus-holder) was shown unconditionally — leaving an empty
+   white box on an idle handle. Strip the box chrome (bg + shadow + border ring)
+   until the handle is active, so the box appears together WITH its buttons and
+   never as an empty box. The button sub-menu flyout keeps its own chrome.
+   `!important` beats the higher-specificity dark-mode rule above. */
+.mw-handle-item:not(.mw-handle-active) .mw-handle-item-menus-holder {
+    background-color: transparent !important;
+    box-shadow: none !important;
+    border-color: transparent !important;
+}
+
+
+.mw-le-handle-menu {
+    .mw-le-handle-menu-buttons{
+
+        height: #{$handleHeight}px;
+
+
+        display: inline-flex;
+        align-items: center;
+
+        pointer-events: all;
+
+        position: static;
+
+        &:empty{
+            display: none !important;
+        }
+        transition: .2s;
+        opacity: 0;
+        transform: translateY(10px);
+        z-index: 2;
+        position: relative;
+    }
+    position: relative;
+
+
+    * {
+        vertical-align: middle;
+    }
+}
+.mw-handle-item.mw-handle-active{
+    .mw-le-handle-menu {
+        .mw-le-handle-menu-buttons{
+            opacity: 1;
+            transform: translateY(0px);
+        }
+    }
+}
+
+
+
+
+
+#mw-handle-item-layout-root{
+
+    .mw-handle-item-menus-holder, .mw-le-handle-menu-buttons{
+        height: auto;
+
+        padding: 0;
+    }
+
+    .mw-le-handle-menu-buttons{
+        display: block;
+        *{
+            vertical-align: middle;
+        }
+    }
+
+    #mw-handle-item-layout-menu {
+        top: 0;
+        right: 5px;
+        left: auto;
+
+
+        .mw-le-handle-menu-title {
+            display: none;
+        }
+    }
+}
+
+.mw-le-handle-menu-button-holder {
+    display: flex;
+    align-items: center;
+    width: auto;
+    white-space: nowrap;
+    text-align: left;
+    border: 1px solid #eee;
+    padding: 7px 10px 7px 5px;
+        padding: 3px 10px 3px 5px;
+    height: auto;
+    margin: 8px 2px;
+
+    * {
+        vertical-align: middle;
+    }
+
+    .mw-le-handle-menu-button.mw-handle-insert-button {
+        padding: 5px;
+
+        &:hover {
+            background-color: rgba(0,0,0,.2);
+        }
+    }
+
+}
+
+.mw-le-handle-menu-buttons {
+    display: inline-block;
+    white-space: nowrap;
+
+    & > .mw-le-handle-menu-button {
+        display: inline-flex;
+        /* task-2026-05-28-af5d5b / AI-1150: WCAG 2.5.5 44x44 touch target (was 32x32) */
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        min-height: 44px;
+        margin: 0 2px;
+        border-radius: 3px;
+        cursor: pointer;
+        text-align: center;
+        justify-content: center;
+        align-items: center;
+        transition: .3s;
+        font-size: 19px;
+
+        &.mw-handle-button-wide{
+            width: auto;
+            white-space: nowrap;
+            display: block;
+            text-align: left;
+            border: 1px solid #eee;
+            padding: 7px 10px 7px 5px !important;
+            height: auto;
+            margin: 2px;
+            * {
+                vertical-align: middle;
+            }
+        }
+
+        &.mw-handle-drag-button{
+            cursor: grab;
+        }
+    }
+}
+
+/* task (user request): the block/layout handle's Settings button is icon-only
+   — the wide "Settings" text label made the handle overflow the mobile
+   viewport. Keep it a compact 44px icon button; the label is kept in the a11y
+   tree via sr-only (never display:none, which would drop it) plus the button's
+   title/tooltip. */
+#mw-handle-item-layout-root .mw-handle-edit-layout-button {
+    width: 44px;
+    justify-content: center;
+    text-align: center;
+}
+#mw-handle-item-layout-root .mw-handle-edit-layout-button .mw-le-handle-menu-button-content-title{
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+/* task (user request): all other block/layout actions live in a single ⋮ "More"
+   dropdown (built in layout.js). Render its fly-out as a vertical, labelled
+   list (the default sub-menu is a horizontal icon strip) capped to the
+   viewport so it never overflows, and show each action's label. */
+#mw-handle-item-layout-root .mw-le-handle-menu-button-sub-menu {
+    flex-direction: column;
+    align-items: stretch;
+    flex-wrap: nowrap;
+    min-width: 190px;
+    max-width: calc(100vw - 24px);
+    padding: 6px !important;
+    gap: 2px;
+}
+#mw-handle-item-layout-root .mw-le-handle-menu-button-sub-menu .mw-le-handle-menu-button {
+    width: 100% !important;
+    height: auto !important;
+    justify-content: flex-start !important;
+    text-align: left;
+    gap: 10px;
+    padding: 8px 10px !important;
+    white-space: nowrap;
+}
+#mw-handle-item-layout-root .mw-le-handle-menu-button-sub-menu .mw-le-handle-menu-button-content-title{
+    display: inline-block;
+    font-size: 14px;
+}
+
+html[dir="rtl"] {
+
+    .mw-le-handle-menu-button-sub-menu {
+        left: 0;
+        right: auto;
+    }
+}
+
+.mw-le-handle-menu-button-sub-menu {
+    display: flex;
+    flex-wrap: nowrap;
+    padding: 4px 0;
+    position: absolute;
+    visibility: hidden;
+    opacity: 0;
+    transform: scaleY(.5);
+    transform-origin: center top;
+    transition: .2s;
+    top: 100%;
+    left: auto;
+    right: 0;
+    background-color: #fff;
+    box-shadow: 0px 4px 16px rgba(17, 17, 26, .1), 0px 8px 32px rgba(17, 17, 26, .05);
+    border-radius: 5px;
+
+    .mw-le-handle-menu-button {
+        display: block;
+        white-space: nowrap;
+        padding: 5px 10px;
+        margin-block: 5px;
+        text-align: left;
+        transition: background-color .3s;
+
+
+    }
+}
+
+.mw-le-handle-menu-button.sub-menu-active {
+    & > .mw-le-handle-menu-button-sub-menu {
+        visibility: visible;
+        opacity: 1;
+        transform: scaleY(1);
+    }
+}
+
+
+.mw-le-handle-menu-button-content {
+    display: inline-flex;
+    white-space: nowrap;
+    flex-wrap: nowrap;
+    .mw-le-handle-menu-button-text {
+        font-size: 14px;
+    }
+
+    align-items: center;
+
+}
+
+.mw-le-handle-menu-button-content-title{
+    font-size: 0;
+}
+.mw-le-handle-menu-button-content-title-visible{
+    font-size: initial;
+    padding-inline-end: 10px;
+    text-transform: capitalize;
+}
+.mw-handle-item .mw-le-handle-menu-button-sub-menu {
+    flex-direction: column;
+    justify-content: start;
+    height: auto;
+    .mw-le-handle-menu-button-content-title{
+        font-size: 14px;
+    }
+    .mw-le-handle-menu-button{
+        width: auto;
+        justify-content: start;
+    }
+}
+
+.mw-le-handle-menu-title {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+    height: 20px;
+    -webkit-user-select: none;
+    user-select: none;
+    cursor: grab;
+    background-color: #0078ff;
+    color: white;
+}
+.mw-handle-item-interaction-handle .mw-le-handle-menu-title{
+    display: inline-flex;
+    position: absolute;
+    top: -22px;
+    left: -3px;
+}
+
+.mw-le-handle-menu-button-icon {
+    display: inline-flex;
+    white-space: nowrap;
+    align-items: center;
+    margin-inline: 6px;
+
+    svg, .mdi, .material-icons, .fa {
+        max-width: 25px;
+        max-height: 25px;
+        display: inline-block;
+        fill: currentColor;
+
+        &.path {
+            fill: currentColor;
+        }
+    }
+
+    svg {
+        width: 25px;
+        height: 25px;
+        //fill: currentColor;
+    }
+
+    * {
+        max-width: 31px;
+        max-height: 31px;
+    }
+}
+
+.mw-le-handle-menu-title-text p::first-letter {
+    text-transform: capitalize;
+}
+.mw-le-handle-menu-title-text {
+    font-size: 12px;
+
+}
+
+
+
+body.mw--resizing{
+
+    -webkit-user-select: none;
+    user-select: none;
+
+    .mw-handle-item-layout-plus {
+        opacity: 0;
+        pointer-events: none !important;
+    }
+}
+
+.mw-editor-link-tooltip-url,
+.mw-handle-item-layout-plus{
+    font-family: "Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-seri;
+
+}
+
+
+.mw-handle-item-layout-plus {
+    $height: 30;
+    font-size: 12px;
+    display: inline-flex;
+    position: absolute;
+    pointer-events: all;
+    min-width: 100px;
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    background-color: #0078ff;
+    color: white;
+    border-radius: 7px;
+    cursor: pointer;
+    left: 50%;
+    transform: translateX(-50%);
+    height: #{$height}px;
+    padding: 0 15px;
+    box-shadow: #11111a1a 0 4px 16px, #11111a0d 0 8px 32px;
+
+    &.mw-handle-item-layout-plus-top {
+        top: 0;
+        margin-top: -#{calc($height / 2)}px;
+    }
+
+    &.mw-handle-item-layout-plus-bottom {
+        bottom: 0;
+        margin-bottom: -#{calc($height / 2)}px;
+    }
+
+    &:hover {
+        background-color: #016ce6;
+    }
+
+    &.mw-le-ghost-layout{
+        position: static;
+        display: flex;
+        margin: 50px auto;
+        transform: none;
+        max-width: 200px;
+
+        height: #{calc($height + ($height/2))}px;
+    }
+
+
+}
+
+.edit:has(.module) {
+    .mw-le-ghost-layout{
+
+        display: none;
+
+    }
+}
+
+.mw-handle-item-element-image-control {
+    position: absolute;
+    top: 20%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    margin-left: -22px;
+    border-radius: 50px;
+    background-color: #fff;
+    box-shadow: rgba(0, 0, 0, 0.05) 0px 6px 24px 0px, rgba(0, 0, 0, 0.08) 0px 0px 0px 1px;
+    cursor: pointer;
+    pointer-events: all;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-size: 20px auto;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' style='width:24px;height:24px' viewBox='0 0 24 24'%3E%3Cpath fill='currentColor' d='M8.5,13.5L11,16.5L14.5,12L19,18H5M21,19V5C21,3.89 20.1,3 19,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19Z' /%3E%3C/svg%3E");
+
+    & > input {
+        position: absolute;
+        top: 0;
+    }
+}
+
+
+html.mw-le--page-preview {
+    .mw-handle-item-layout-plus{
+        display: none;
+    }
+}
+html:not(.mw-le--page-preview) [data-mw-live-edithover="true"] > * {
+    pointer-events: none;
+    .module,.element,.cloneable, .edit{
+        pointer-events: all;
+    }
+    &.module,&.element,&.cloneable, &.edit{
+        pointer-events: all;
+    }
+}
+
+
+.mw-le--handle-icon--color{
+    display: inline-block;
+    position: relative;
+    vertical-align: middle;
+    width: 25px;
+    height: 25px;
+    border-radius: 25px;
+    border: 2px solid #111;
+    overflow: hidden;
+
+
+        background-image: repeating-conic-gradient(silver 0 25%, transparent 0 50%), linear-gradient(0deg, rgba(0,0,0,0.01) 0%, rgba(0,0,0,0) 100%);
+        background-size:9px 9px, 100% 100%;
+
+        .mw-le--handle-icon--color-color{
+            position: absolute;
+            inset: 0;
+        }
+
+
+}
+
+
+.insert-abs-module-button{
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: white;
+    display: block;
+    padding: 10px;
+    border: none;
+    font-size: 19px;
+    border-radius: 5px;
+    box-shadow: #11111a1a 0 4px 16px, #11111a0d 0 8px 32px;
+    padding: 11px 11px 9px !important;
+    display: inline-flex;
+    border-radius: 7px;
+    border: 1px solid transparent;
+    box-shadow: #11111a1a 0 4px 16px, #11111a0d 0 8px 32px;
+    background-color: #fff;
+    min-width: 100px;
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+}
+
+
+.mw-le-handle-menu-button-hidden{
+    display: none !important;
+}
+
+.mw-le-handle-menu-button-disabled{
+    display: none !important;
+}
+
+.mw-le-handle-menu-button-holder:empty{
+    display: none   ;
+}
+
+[data-header-footer="true"] {
+    #mw-handle-item-layout-root{
+        .mw-handle-layout-delete-button,.mw-le-handle-menu-button-holder{
+            display: none !important;
+        }
+    }
+    &[template-filter="menus"] #mw-handle-item-layout-root .mw-handle-item-menus-holder{
+        top: 100%;
+        transform: translateY(-0) !important;
+        border-top-left-radius: 0 !important;
+        border-top-right-radius: 0 !important;
+    }
+    &[template-filter="footers"] #mw-handle-item-layout-root .mw-handle-item-menus-holder{
+        bottom: 100%;
+        top: auto;
+        transform: translateY(0) !important;
+        border-bottom-left-radius: 0 !important;
+        border-bottom-right-radius: 0 !important;
+
+    }
+}
+@media (min-width: 801px) {
+    #mw-handle-item-layout-root{
+        .mw-handle-item-menus-holder{
+            // task-2026-05-28-571193 — transition defined at base state so exit
+            // (unhover) also animates; previously transition was only in :hover
+            // which caused items to snap to opacity:0 instantly on mouse-out.
+            // NOTE: this desktop hover-reveal hides every sibling AFTER the first
+            // handle button. The block handle is now [+ Add layout][⋮ More], and
+            // the ⋮ trigger must stay visible at all times (it opens the actions
+            // dropdown) — so exempt .mw-handle-layout-more-button from the hide,
+            // otherwise the 3-dots button is invisible until the row is hovered.
+            .mw-le-handle-menu-button ~ *:not(.mw-handle-layout-more-button){
+                height: 0;
+                opacity: 0;
+                transition: opacity .2s, height .2s;
+            }
+            &:not(:hover) {
+                .mw-le-handle-menu-button ~ *:not(.mw-handle-layout-more-button){
+                    height: 0;
+                    opacity: 0;
+                    padding: 0 !important;
+                    overflow: hidden;
+                    margin: 0;
+                }
+                // task-2026-06-13-letele2 — the wide "Delete" layout button keeps
+                // height:auto from .mw-handle-button-wide, so the height:0 collapse
+                // above never flattens it: an invisible 44px row stayed reserved
+                // under the visible Settings/Clone buttons — the "empty white row"
+                // users saw in the layout Settings box. Flatten it explicitly while
+                // the holder is idle; the &:hover block below restores it.
+                .mw-le-handle-menu-button.mw-handle-button-wide.mw-handle-layout-delete-button{
+                    height: 0 !important;
+                    min-height: 0 !important;
+                    padding-top: 0 !important;
+                    padding-bottom: 0 !important;
+                    margin-top: 0 !important;
+                    margin-bottom: 0 !important;
+                    border-width: 0 !important;
+                    overflow: hidden;
+                }
+            }
+
+            &:hover{
+                .mw-le-handle-menu-button ~ *{
+                    height: auto;
+                    opacity: 1;
+                    transition: opacity .2s;
+                }
+            }
+        }
+    }
+}
+@media (max-width: 800px) {
+    #mw-handle-item-layout-root{
+        &:before{
+            content: '';
+            display: block;
+            height: calc(100% + 5px);
+            pointer-events: none;
+        }
+        position: absolute;
+        inset:0;
+        pointer-events: none;
+        .mw-handle-item-menus-holder{
+            position:sticky;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            transform: none !important;
+            border-radius: 0;
+            padding: 0 10px !important;
+            border-width: 0;
+        }
+         .mw-le-handle-menu-buttons{
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+         }
+
+         .mw-le-handle-menu{
+            width: 100%;
+         }
+
+    }
+}
+
+/*
+ * AI-179 (cycle-153 2026-05-10) — Canvas element-handle buttons 32×32
+ * is below WCAG 2.5.5 / iOS HIG 44×44 floor on touch devices.
+ *
+ * UX-audit P1 finding: "Element handle buttons 32×32px and clipped
+ * (some at negative Y coordinates)" at 390×844.
+ *
+ * The handle floats over the canvas iframe whenever a user
+ * selects/hovers an editable element. The .mw-le-handle-menu-button
+ * tiles inside `.mw-handle-item-menus-holder` (and the
+ * .mw-le-handle-menu-button-sub-menu submenu) are pinned to 32x32 by
+ * the rules at handles.scss:134 and :297 — fine for desktop pointer
+ * precision, hostile to touch.
+ *
+ * Cycle-153 fix: bump every visible handle-menu button to 44×44 on
+ * touch-capable contexts (`@media (pointer: coarse)`) AND on small
+ * viewports (`(max-width: 800px)`) so the rule fires whether the
+ * environment is a true touch device, a narrow desktop window, or a
+ * dev-tools viewport-emulation. Margin between buttons increases too
+ * so the larger tap targets don't become a single fat strip.
+ *
+ * The (negative-Y / clipped) part of the audit is a separate
+ * positioning concern — the menu is `position: absolute` with the
+ * top/left set inline by the JS handle-positioning code in
+ * `packages/frontend-assets/resources/assets/api-core/.../element-
+ * handle.js`. When the selected element is near the iframe top, the
+ * menu's computed top can go below 0. The cycle-N (max-width: 800px)
+ * rule above already converts the layout-root menu to `position:
+ * sticky; bottom: 0;` which side-steps the clipping for the layout-
+ * root case. The remaining clip case (regular element-root menu near
+ * top of canvas) is documented as phase-2 follow-up — needs JS-side
+ * clamping in element-handle.js, not pure CSS.
+ */
+@media (max-width: 800px), (pointer: coarse) {
+    /* Higher-specificity rule (line 134) — .mw-handle-item .mw-handle-
+       item-menus-holder .mw-le-handle-menu-button. Match its 0,3,0
+       specificity by including the same ancestor chain. */
+    .mw-handle-item .mw-handle-item-menus-holder .mw-le-handle-menu-button,
+    .mw-handle-item .mw-le-handle-menu-button-sub-menu .mw-le-handle-menu-button,
+    /* Lower-specificity rule (line 297) — direct .mw-le-handle-menu-
+       buttons child. Cover this too in case the menus-holder ancestor
+       isn't present in some future refactor. */
+    .mw-le-handle-menu-buttons > .mw-le-handle-menu-button {
+        min-width: 44px;
+        min-height: 44px;
+        width: auto;
+        height: auto;
+        margin: 0 4px;
+        padding: 6px;
+    }
+    /* The menus-holder itself shipped at $handleholderHeight px tall
+       (line 125 — 38px). Bump it to fit the 44x44 buttons + chrome so
+       the buttons aren't clipped vertically inside their holder. */
+    .mw-handle-item .mw-handle-item-menus-holder,
+    .mw-handle-item .mw-le-handle-menu-button-sub-menu {
+        height: auto;
+        min-height: 56px;
+        padding: 6px !important;
+    }
+}
+
+/* task: mobile block/element handle toolbar overflow + missing insert button.
+   The floating handle button row (Settings · Insert · Duplicate · Favorite ·
+   Move ↑↓ · Delete · …) is laid out nowrap — `.mw-le-handle-menu-buttons` is
+   inline-block/white-space:nowrap (line ~324) and the element handle bar
+   `#mw-handle-item-element-menu` is a nowrap flex (line ~104). On a narrow
+   viewport the rightmost buttons — including the new Insert-module button and
+   any ⋮ overflow — clip off the screen edge and become unreachable (the
+   reported bug). Line ~820 deferred horizontal clamping as "needs JS", but
+   pure CSS solves reachability by letting the row WRAP inside the holder and
+   capping the holder to the viewport width: nothing is ever clipped, the chip
+   just grows to a second row. Applies to whichever handle is active
+   (module / element / layout), so it is robust to which one the user selected.
+   NOTE: this fixes clipping via wrap; if the holder is *positioned* partly
+   off-screen on some elements, that anchor clamp is the JS-side follow-up the
+   earlier comment referred to. */
+@media (max-width: 800px), (pointer: coarse) {
+    .mw-handle-item .mw-handle-item-menus-holder {
+        max-width: calc(100vw - 16px);
+        flex-wrap: wrap;
+    }
+    .mw-le-handle-menu-buttons {
+        white-space: normal;   /* was nowrap — allow the row to wrap */
+        max-width: 100%;
+    }
+    #mw-handle-item-element-menu {
+        flex-wrap: wrap;
+        max-width: calc(100vw - 16px);
+    }
+    /* Labelled (wide) buttons like "Settings"/"Delete" must not force their
+       own overflow row — let the label truncate rather than push width out. */
+    .mw-le-handle-menu-buttons > .mw-le-handle-menu-button.mw-handle-button-wide {
+        max-width: 100%;
+        overflow: hidden;
+    }
+}

@@ -1,0 +1,554 @@
+
+
+<style>
+.back-to-edit{
+    position: fixed;
+    top: -80px;
+    right: -80px;
+    width: 160px;
+    height: 160px;
+    cursor: pointer;
+    background-color: #fff;
+    z-index: 10;
+    text-align: center;
+    padding: 70px 95px 0 0;
+    box-shadow: 0 0 10px #0000002b;
+    transform: scale(0) rotate(-45deg);
+    transition: .3s;
+    visibility: hidden;
+    pointer-events: none;
+    opacity: 0;
+}
+.dark .back-to-edit svg{
+    fill: white;
+}
+.dark .back-to-edit{
+
+    background-color: rgb(24 36 51 / var(--tw-bg-opacity));
+
+
+}
+
+html.preview .back-to-edit{
+    transform: scale(1) rotate(-45deg);
+    visibility: visible;
+    pointer-events: all;
+    opacity: 1;
+}
+
+html.mw-setup-wizard-document .back-to-edit{
+    display: none;
+}
+
+.back-to-edit svg{
+    transform: rotate(45deg);
+    width: 24px;
+    margin-left: 20px;
+}
+
+/* task-2026-09-24 — the toolbar Admin button: an outline button with icon +
+   label (bigger, reads as a real button like the other toolbar buttons). */
+.mw-toolbar-admin-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 36px;
+    padding: 0 14px;
+    border: 1px solid var(--mw-border-color, #dadfe5);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--mw-text-primary, #182433);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color .15s, border-color .15s, color .15s;
+}
+.mw-toolbar-admin-btn svg { flex: 0 0 auto; }
+.mw-toolbar-admin-btn:hover { background: var(--mw-bg-page, #f6f8fb); border-color: var(--mw-text-muted, #9aa3af); }
+.mw-toolbar-admin-btn.is-active { background: var(--mw-text-primary, #182433); border-color: var(--mw-text-primary, #182433); color: #fff; }
+.dark .mw-toolbar-admin-btn { border-color: rgba(255,255,255,.18); color: #e8eaed; }
+.dark .mw-toolbar-admin-btn:hover { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.3); }
+.dark .mw-toolbar-admin-btn.is-active { background: #e8eaed; color: #182433; border-color: #e8eaed; }
+
+</style>
+<template>
+    <div id="toolbar" role="toolbar" aria-label="Live edit toolbar" class="shadow-sm md:px-6 px-3 gap-3 " :style="{'display': toolbarDisplay}">
+        <div class="toolbar-nav toolbar-nav-hover col-xxl-3 col-auto d-flex justify-content-start align-items-center">
+
+            <!-- task-2026-09-24 — Admin moved here (1st, top-left) from the right
+                 rail per user request. Toggles the admin nav sidebar
+                 (aside.fi-sidebar, now a LEFT overlay) via toggleAdminSidebar(). -->
+            <button type="button"
+                 class="live-edit-toolbar-buttons live-edit-toolbar-button-admin mw-toolbar-admin-btn"
+                 :class="{'is-active': adminSidebarActive}"
+                 aria-label="Admin"
+                 title="Admin"
+                 data-mw-label="Admin"
+                 :aria-pressed="adminSidebarActive"
+                 v-on:click="handleAdmin()"
+                 v-on:keydown.enter.prevent="handleAdmin()"
+                 v-on:keydown.space.prevent="handleAdmin()">
+                <svg fill="currentColor" height="18" viewBox="0 -960 960 960" width="18"
+                     xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M520-600v-240h320v240H520ZM120-440v-400h320v400H120Zm400 320v-400h320v400H520Zm-400 0v-240h320v240H120Zm80-400h160v-240H200v240Zm400 320h160v-240H600v240Zm0-480h160v-80H600v80ZM200-200h160v-80H200v80Zm160-320Zm240-160Zm0 240ZM360-280Z"/>
+                </svg>
+                <span>Admin</span>
+            </button>
+
+            <!--
+              task-2026-09-05-adminrail — the "Back to admin" arrow link is
+              hidden: admin access is now the right-rail "Admin" button
+              (SettingsCustomize.vue → toggleAdminSidebar). The ☰ hamburger
+              (MainDrawer) still carries its own "Back to admin" item. This
+              element is KEPT (display:none, not removed) because Dusk tests
+              pin it — LiveEditMultilanguageTest reads its href,
+              AdminLiveEditDropdownAndButtonsTest asserts its presence — and
+              the layout's DOMContentLoaded handler still binds its click.
+              Inline !important so the mobile force-show rule can't reveal it.
+            -->
+            <a id="mw-live-edit-toolbar-back-to-admin-link" aria-label="Back to admin" aria-hidden="true" tabindex="-1" style="display:none !important;" class="mw-live-edit-toolbar-link mw-live-edit-toolbar-link--arrowed" :href="backToAdminLink">
+                <svg class="mw-live-edit-toolbar-arrow-icon" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+                    <g fill="none" stroke-width="1.5" stroke-linejoin="round" stroke-miterlimit="10">
+                        <circle class="arrow-icon--circle" cx="16" cy="16" r="15.12"></circle>
+                        <path class="arrow-icon--arrow" d="M16.14 9.93L22.21 16l-6.07 6.07M8.23 16h13.98"></path>
+                    </g>
+                </svg>
+                 <span class="ms-1 font-weight-bold">ADMIN</span>
+            </a>
+
+            <!-- AI-274 / AI-268 (task-2026-05-13-b07dd6): the undo/redo
+                 buttons existed (UndoRedo.vue) but the wrapper was hidden
+                 — tester audit (AI-245) flagged this as an interaction-
+                 design gap: Ctrl+Z worked nowhere because no shortcut was
+                 bound, and the buttons that DID work were invisible. The
+                 `hidden` class is now removed so the buttons surface in
+                 the toolbar; UndoRedo.vue separately binds Ctrl+Z + Ctrl+Y
+                 to the same handlers so keyboard users get the same
+                 affordance. -->
+            <div class="live-edit-undo-redo-buttons-wrapper ms-1">
+                <UndoRedo></UndoRedo>
+            </div>
+
+            <div class="live-edit-add-content-button-wrapper ms-1">
+                <AddContentButton></AddContentButton>
+            </div>
+        </div>
+
+
+        <!--
+          task-2026-05-16-66ceca / AI-701 — centred toolbar slot now
+          renders the current-page chip + picker per v2's anchored
+          page-name dropdown pattern. The chip doubles as "what page
+          am I editing?" + "switch page". `<ContentSearchNav>` was
+          the prior generic placeholder; PageChip replaces it inline
+          (designer's AI-698 toolbar-restructure positions the slot
+          in the right place — the chip works in both the current
+          layout AND the post-AI-698c layout).
+
+          The hidden ContentSearchNav DOM is preserved as a fallback
+          so external code that targets `#mw-live-edit-search-content`
+          still finds the element.
+        -->
+        <div class="col col-xl-auto toolbar-col-container">
+            <PageChip></PageChip>
+            <div style="display: none;" aria-hidden="true">
+                <ContentSearchNav></ContentSearchNav>
+            </div>
+            <ToolbarMulilanguageSelector></ToolbarMulilanguageSelector>
+        </div>
+
+        <div class="toolbar-col justify-content-center align-items-center ">
+            <div class="toolbar-col-container">
+                <!-- task-2026-05-17-b91c0c / AI-810 — flex-nowrap on the
+                     inner right-col row. Pre-fix this carried `flex-wrap`
+                     (Bootstrap utility). At desktop 1440 the inner items
+                     (Resolution / Tools / Preview / Save / Undo+Redo /
+                     Theme / ☰) total width occasionally exceeded the
+                     right col's flex share, which triggered wrap to a 2nd
+                     row. The 2-row .toolbar-col natural height (~67-90px)
+                     then exceeded #toolbar's fixed 48px height (AI-698a
+                     token --toolbar-height), and #toolbar's
+                     `align-items: center` flex-centred the over-tall
+                     column to y=24-height/2, putting the TOP at negative
+                     y. Designer probe captured #preview-nav at y=-19.5px
+                     (top half clipped above viewport). Switch to
+                     flex-nowrap so items stay on one row and either fit
+                     horizontally or overflow visibly inside the toolbar
+                     bounds — never wrap vertically. Same family as
+                     Stage-3 viewport-scope leak (AI-803) but in the
+                     vertical axis. -->
+                <div class="d-flex align-items-center flex-nowrap gap-2">
+                    <ResolutionSwitch></ResolutionSwitch>
+
+
+                    <ToolbarToolsDropdown></ToolbarToolsDropdown>
+
+
+
+
+
+
+
+
+
+                    <span id="mw-page-set-back-to-edit-mode" role="button" aria-label="Back to edit mode" class="back-to-edit" @click="pagePreviewToggle()" title="Back to edit">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960"><path d="M181.674-179.761h41.13l441.087-441.565-41.13-41.13-441.087 441.565v41.13Zm613.043-484.326L665.761-793.043l36.978-37.218q19.631-19.63 47.859-19.75 28.228-.119 47.859 19.272l37.782 37.782q18.435 18.196 17.837 44.153-.598 25.956-18.315 43.674l-41.044 41.043Zm-41.76 41.761L247.761-117.13H118.804v-128.957l504.957-504.956 129.196 128.717Zm-109.392-19.565-20.804-20.565 41.13 41.13-20.326-20.565Z"></path></svg>
+                    </span>
+                    <!--
+                      NOVICE #7 (task-2026-05-13-899d57) — the VIEW button
+                      gave no clue what it does. Novice persona reported:
+                      "I clicked VIEW to see what it does. The whole editor
+                      disappeared. I thought I broke it." Added a title
+                      attribute that promises what will happen and tells
+                      the user how to come back, plus renamed the visible
+                      label from VIEW (ambiguous — view what?) to PREVIEW
+                      (which is what the button actually does).
+                    -->
+                    <button id="mw-page-set-preview-mode" aria-label="Preview — see how visitors will see this page (click again to return to editing)" title="Preview — see how visitors will see this page (click again to return to editing)" class="btn live-edit-toolbar-buttons live-edit-toolbar-buttons-view me-2" @click="pagePreviewToggle()">
+                        PREVIEW
+                    </button>
+                    <SaveButton></SaveButton>
+
+                    <!--
+                      task-2026-05-16-7326d6 / AI-700 + AI-698b item 3 —
+                      the ☰ hamburger button that opens MainDrawer.
+                      Sits at the right end of the toolbar per the
+                      AI-698 layout spec (← ADMIN · undo redo · + ADD
+                      · Search · device-preview · ⋯ tools · ⌄ · VIEW
+                      · SAVE · ☰). The legacy hidden hamburger at
+                      #user-menu-wrapper.mw-le-hamburger below stays
+                      hidden for Dusk-test back-compat per
+                      task-2026-05-16-3ae87c.
+                    -->
+                    <!--
+                      task-2026-09-06-menumerge — the ☰ hamburger is HIDDEN:
+                      the Navigation drawer's items (Pages, Back to admin,
+                      Users, View public site) were merged into the 3-dots
+                      ToolbarToolsDropdown, so Live Edit has a single overflow
+                      menu. The button + MainDrawer are KEPT in the DOM
+                      (display:none) for Dusk back-compat and because
+                      LiveEdit7326d6AI700MainDrawerContractTest still pins the
+                      #mw-live-edit-main-drawer-button trigger. Inline
+                      !important so no rule can re-reveal it.
+                    -->
+                    <button
+                        type="button"
+                        id="mw-live-edit-main-drawer-button"
+                        class="btn-icon live-edit-toolbar-buttons mw-toolbar-icon-btn mw-main-drawer-trigger"
+                        aria-label="Open menu"
+                        aria-haspopup="true"
+                        aria-hidden="true"
+                        tabindex="-1"
+                        style="display:none !important;"
+                        title="Open menu"
+                        @click="$refs.mainDrawer && $refs.mainDrawer.open()"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" width="22" height="22" fill="currentColor" aria-hidden="true">
+                            <path d="M120-240v-80h720v80H120Zm0-200v-80h720v80H120Zm0-200v-80h720v80H120Z"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- task-2026-05-16-7326d6 / AI-700 — MainDrawer mounts as
+                 a sibling here, but its <Teleport to="body"> moves the
+                 actual panel + backdrop to document.body root so the
+                 toolbar's overflow context can't clip it. The drawer
+                 reads `backToAdminLink` and the cached user-menu data
+                 from Toolbar.vue's existing props (no new API call). -->
+            <MainDrawer
+                ref="mainDrawer"
+                :back-to-admin-link="backToAdminLink"
+                :menu="menu"
+            />
+
+            <!--
+                task-2026-05-16-3ae87c: the user-menu button and its
+                dropdown panel are kept in the DOM but hidden from view
+                because the visible menu items now render inside the
+                3-dots ToolbarToolsDropdown ("we dont need 2 dordowns").
+                Keeping the wrapper avoids regressions in:
+                  - tests/Browser/AdminLiveEditDropdownAndButtonsTest.php
+                    (checks for `#toolbar-user-menu-button`,
+                    `#user-menu-wrapper`, `#user-menu nav` membership)
+                  - SettingsCustomize.vue:651 (defensive `.classList.remove`)
+                  - CSS selectors in live-edit-classes.css /
+                    general-styles.css that target `.mw-le-hamburger`
+                    and `#user-menu-wrapper.active`
+                Behaviour is preserved: the hidden button still toggles
+                `.active` on the wrapper when scripts call userMenu().
+            -->
+            <div id="user-menu-wrapper" class="align-self-center" style="display: none;" aria-hidden="true">
+                <!--
+                  NOVICE #6 (task-2026-05-13-899d57) — the original button
+                  was three bare <span> bars with no icon, no label, and
+                  no chevron. Novice persona reported: "I closed the tab
+                  to log out — I had no idea Logout, Light/Dark mode, or
+                  the user settings were hidden there."
+
+                  Replaced the three nameless bars with a real button
+                  shape: user icon + "Menu" text (visible on screens
+                  wider than mobile via the d-none/d-md-inline pair) +
+                  chevron-down to signal "click for more". The button
+                  reads as an account-menu affordance at first glance.
+
+                  Tooltip and aria-label preserved so screen-reader
+                  users keep the same announce-text they already had.
+
+                  The .mw-le-hamburger class is kept on the parent
+                  because (a) existing selectors in live-edit-classes.css
+                  target .active>.mw-le-hamburger for the open-state
+                  visual, and (b) the test suite has Browser tests that
+                  look for the class. Sizing/visuals are now overridden
+                  by .mw-le-user-menu-button (added to the same element)
+                  + scoped CSS — see general-styles.css.
+                -->
+                <button
+                    type="button"
+                    class="mw-le-hamburger mw-le-user-menu-button"
+                    id="toolbar-user-menu-button"
+                    aria-label="Open user menu"
+                    aria-haspopup="true"
+                    title="Menu — logout, account settings, light/dark mode"
+                    @click="userMenu()"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="mw-le-user-menu-button__icon" aria-hidden="true">
+                        <circle cx="12" cy="8" r="4"></circle>
+                        <path d="M4 21a8 8 0 0 1 16 0"></path>
+                    </svg>
+                    <span class="mw-le-user-menu-button__label d-none d-md-inline">Menu</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mw-le-user-menu-button__chevron" aria-hidden="true">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </button>
+                <div id="user-menu" class="mw-le-nav-box">
+                    <nav aria-label="User navigation">
+                        <a v-for="menuItem in menu" :href="menuItem.href" :onclick="menuItem.onclick" :target="menuItem.target" :id="menuItem.id" :ref="menuItem.ref?menuItem.ref:''" :class="menuItem.class?menuItem.class:''">
+                            <span v-html="menuItem.icon_html"></span>
+                            {{ menuItem.title }}
+
+                        </a>
+
+                        <a  v-on:click="toggleDarkMode()"  >
+
+
+                            <span   v-if="theme === 'light'">
+                                <svg fill="currentColor" xmlns="http://www.w3.org/2000/svg" height="36" viewBox="0 96 960 960" width="36">
+                                    <path
+                                        d="M480 936q-150 0-255-105T120 576q0-150 105-255t255-105q14 0 27.5 1t26.5 3q-41 29-65.5 75.5T444 396q0 90 63 153t153 63q55 0 101-24.5t75-65.5q2 13 3 26.5t1 27.5q0 150-105 255T480 936Zm0-80q88 0 158-48.5T740 681q-20 5-40 8t-40 3q-123 0-209.5-86.5T364 396q0-20 3-40t8-40q-78 32-126.5 102T200 576q0 116 82 198t198 82Zm-10-270Z"></path>
+                                </svg>
+                                Dark mode
+                            </span>
+                            <span v-if="theme === 'dark'">
+                                <svg height="36"  width="36"  xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" data-slot="icon">
+                                    <path d="M10 2a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 10 2ZM10 15a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 10 15ZM10 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM15.657 5.404a.75.75 0 1 0-1.06-1.06l-1.061 1.06a.75.75 0 0 0 1.06 1.06l1.06-1.06ZM6.464 14.596a.75.75 0 1 0-1.06-1.06l-1.06 1.06a.75.75 0 0 0 1.06 1.06l1.06-1.06ZM18 10a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 18 10ZM5 10a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 5 10ZM14.596 15.657a.75.75 0 0 0 1.06-1.06l-1.06-1.061a.75.75 0 1 0-1.06 1.06l1.06 1.06ZM5.404 6.464a.75.75 0 0 0 1.06-1.06l-1.06-1.06a.75.75 0 1 0-1.061 1.06l1.06 1.06Z"></path>
+                                </svg>
+                                Light mode
+                            </span>
+
+
+
+
+                        </a>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <HtmlEditor></HtmlEditor>
+
+    <Editor></Editor>
+
+
+</template>
+
+<script>
+import ResolutionSwitch from "./ResolutionSwitch.vue";
+import Editor from "./Editor.vue";
+import UndoRedo from "./UndoRedo.vue";
+import SaveButton from "./SaveButton.vue";
+import ContentSearchNav from "./ContentSearchNav.vue";
+import SettingsCustomize from "./SettingsCustomize.vue";
+
+import * as api from "../../../api-core/services/services/preview.service.js";
+import axios from 'axios';
+import StyleEditor from "../StyleEditor/StyleEditor.vue";
+import HtmlEditor from "../HtmlEditor/HtmlEditor.vue";
+import AddContentButton from "./AddContentButton.vue";
+import ToolbarMulilanguageSelector from "./ToolbarMulilanguageSelector.vue";
+import ToolbarToolsDropdown from "./ToolbarToolsDropdown.vue";
+// task-2026-05-16-7326d6 / AI-700 — left-drawer consolidating
+// Template Settings + Layers + Tools + Admin nav.
+import MainDrawer from "./MainDrawer.vue";
+// task-2026-05-16-66ceca / AI-701 — current-page chip + picker
+// replaces the generic Search field in the centred toolbar slot.
+import PageChip from "./PageChip.vue";
+
+export default {
+    components: {
+        ToolbarMulilanguageSelector,
+        ToolbarToolsDropdown,
+        AddContentButton,
+        HtmlEditor,
+        MainDrawer,
+        PageChip,
+        SaveButton, UndoRedo, Editor, ResolutionSwitch, ContentSearchNav, SettingsCustomize,},
+    methods: {
+        pagePreviewToggle: () => {
+           api.pagePreviewToggle()
+        },
+        userMenu: () => {
+            document.getElementById('user-menu-wrapper').classList.toggle('active');
+        },
+        async getTopRightMenu () {
+            let instance = this;
+            await axios.get(route('api.live-edit.get-top-right-menu')).then(function (response) {
+                instance.menu = response.data;
+            });
+        },
+        toggleDarkMode(){
+                mw.top().admin.theme.toggle();
+
+               //  this.theme = mw.top().admin.theme.getTheme();
+
+        },
+
+        // task-2026-09-24 — toolbar Admin button (moved from the right rail).
+        // Toggles the Filament admin sidebar overlay; closes any other panel
+        // first so only one surface shows at a time.
+        handleAdmin() {
+            try {
+                mw.app.advancedPanelWidget?.hide();
+                mw.top().app.templateSettingsWidget?.hide();
+            } catch (e) { /* panels may not be mounted yet */ }
+            try { mw.top().app.liveEditWidgets.toggleAdminSidebar(); } catch (e) {}
+        },
+
+    },
+    data() {
+        return {
+            menu: [],
+            toolbarDisplay: 'none',
+            adminSidebarActive: false,
+            backToAdminLink: '',
+            theme: window.mw.top().admin.theme.getTheme()
+        }
+    },
+    mounted() {
+
+        this.getTopRightMenu();
+        const userMenuWrapper = document.getElementById('user-menu-wrapper');
+
+        mw.top().admin.theme.on('change', () => {
+            this.theme = mw.top().admin.theme.getTheme();
+        })
+
+        // task-2026-09-24 — keep the toolbar Admin button's active state in sync
+        // with the admin sidebar overlay (opened/closed from anywhere).
+        try {
+            mw.top().app.liveEditWidgets.on('adminSidebarOpen', () => { this.adminSidebarActive = true; });
+            mw.top().app.liveEditWidgets.on('adminSidebarClose', () => { this.adminSidebarActive = false; });
+        } catch (e) { /* widgets service may init later; button still toggles via handleAdmin */ }
+
+
+
+
+        document.addEventListener('click', e => {
+            if(!userMenuWrapper.contains(e.target)) {
+                userMenuWrapper.classList.remove('active');
+            }
+        });
+        document.querySelector('#live-edit-app').style.display = this.toolbarDisplay;
+
+        let _ready = 0;
+
+        const _handleReady = () => {
+            if(_ready < 2) return;
+            setTimeout(() => {
+                this.toolbarDisplay = '';
+                document.querySelector('#live-edit-app').style.display = this.toolbarDisplay;
+
+
+                if (this.toolbarDisplay !== 'none') {
+                    var event = new Event('liveEditLoaded');
+                    window.dispatchEvent(event);
+                    document.querySelector('#live-edit-app').classList.add('live-edit-loaded');
+                }
+
+            }, 700);
+
+        }
+
+        window.addEventListener('load', () => {
+            _ready++
+            _handleReady()
+        })
+
+        mw.app.canvas.on('liveEditCanvasLoaded', () => {
+
+            _ready++;
+            _handleReady();
+
+
+
+            setTimeout(() =>  {
+                if(mw.app.isPreview()) {
+                    api.previewMode();
+
+                } else {
+                    api.liveEditMode();
+                }
+            }, 10);
+
+
+
+            var liveEditIframeData = mw.top().app.canvas.getLiveEditData();
+            if (document.getElementById('js-live-edit-back-to-admin-link')) {
+
+                this.backToAdminLink = document.getElementById('js-live-edit-back-to-admin-link').href;
+
+                var liveEditIframeDocument = mw.top().app.canvas.getWindow();
+                // check if windowd location is in admin
+                if (liveEditIframeDocument.location.href.indexOf(this.backToAdminLink) !== -1) {
+                    // go top to the location in admin
+                    mw.notification.success('You are back to admin', 5000);
+                    window.location.href = liveEditIframeDocument.location.href;
+                }
+
+
+            }
+            if (liveEditIframeData && liveEditIframeData.content) {
+
+                this.backToAdminLink = liveEditIframeData.back_to_admin_link;
+
+
+                this.backToAdminLink = liveEditIframeData.content.content_edit_link;
+                if (liveEditIframeData.content.is_home) {
+                    this.backToAdminLink = liveEditIframeData.back_to_admin_link;
+                }
+
+                if (liveEditIframeData.content_link) {
+                    var liveEditWebsitePreviewLink = document.getElementById('js-live-edit-website-preview-link');
+                    if (liveEditWebsitePreviewLink) {
+                        liveEditWebsitePreviewLink.href = liveEditIframeData.content_link;
+                        liveEditWebsitePreviewLink.target = '_blank';
+                    }
+
+                }
+
+            }
+
+
+
+
+        })
+        mw.app.canvas.on('canvasDocumentClick', () => {
+            userMenuWrapper.classList.remove('active');
+        });
+    }
+}
+</script>

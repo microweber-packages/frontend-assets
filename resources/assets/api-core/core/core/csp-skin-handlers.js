@@ -1,0 +1,208 @@
+/*
+ * AI-75 / TICKET-BB (cycle-87 2026-05-09): CSP-hardening — delegated
+ * click listener for the public module-skin handlers that previously
+ * used inline `onclick=` attributes.
+ *
+ * Inline `onclick="..."` attributes are blocked by a strict
+ * Content-Security-Policy (`script-src 'self'`); replacing them with
+ * data-* attributes + a single delegated listener keeps the same
+ * functionality without violating CSP. Same pattern used in
+ * cycle-41/52/53 for the cart Add-to-cart button family
+ * (`mw-add-to-cart-btn`).
+ *
+ * Four handler families covered:
+ *
+ *   1. data-mw-gallery="<base64-encoded JSON>" + data-mw-gallery-index
+ *      Pictures gallery launcher. Replaces:
+ *          onclick="mw.gallery(galleryXXX, N)"
+ *      The data-mw-gallery JSON carries the array of {image,
+ *      description} items so we don't need a per-instance global
+ *      `galleryXXX` variable (also closes a CSP-inline-script hole).
+ *
+ *   2. data-mw-product-image="<thumbnail-url>" +
+ *      data-mw-product-image-target="<id>"
+ *      Replaces: onclick="setProductImage('id', 'url', N)"
+ *
+ *   3. data-mw-cart-add-and-checkout="<item-id>"
+ *      Replaces: onclick="mw.cart.add_and_checkout('123')"
+ *
+ *   4. data-mw-pinmarklet
+ *      Replaces: onclick="mw.pinMarklet()"
+ *
+ *   5. data-mw-copy-link="<url>" + data-mw-copy-link-done="<label>"
+ *      Replaces: onclick="navigator.clipboard.writeText(...)" (Sharer
+ *      "Copy link" button).
+ *
+ * The listener is attached at document level once on DOMContentLoaded
+ * (idempotent guard). Click events bubble up; we walk the target's
+ * ancestor chain via Element.closest() to find the data-* attribute,
+ * which lets a click on an inner <img> still trigger the wrapper's
+ * handler.
+ */
+(function () {
+    'use strict';
+
+    if (window.__mwCspSkinHandlersAttached) {
+        return;
+    }
+    window.__mwCspSkinHandlersAttached = true;
+
+    function safeJsonParse(value) {
+        if (typeof value !== 'string' || value === '') {
+            return null;
+        }
+        // The data-mw-gallery payload is base64-encoded JSON to dodge
+        // HTML-attribute quoting issues (descriptions can contain
+        // any character including ", ', and <). atob is universally
+        // available in browser; decodeURIComponent + escape handles
+        // UTF-8 round-trip safely without TextDecoder.
+        try {
+            var decoded = decodeURIComponent(escape(atob(value)));
+            return JSON.parse(decoded);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    document.addEventListener('click', function (event) {
+        if (! event.target || typeof event.target.closest !== 'function') {
+            return;
+        }
+
+        // (1) Pictures gallery launcher.
+        var galleryEl = event.target.closest('[data-mw-gallery]');
+        if (galleryEl) {
+            var galleryData = safeJsonParse(galleryEl.getAttribute('data-mw-gallery'));
+            if (Array.isArray(galleryData)) {
+                var idx = parseInt(galleryEl.getAttribute('data-mw-gallery-index') || '0', 10) || 0;
+                if (window.mw && typeof window.mw.gallery === 'function') {
+                    event.preventDefault();
+                    window.mw.gallery(galleryData, idx);
+                    return;
+                }
+            }
+        }
+
+        // (2) Product image swap on shop-inner Pictures skins.
+        var productImageEl = event.target.closest('[data-mw-product-image]');
+        if (productImageEl) {
+            var src = productImageEl.getAttribute('data-mw-product-image');
+            var targetId = productImageEl.getAttribute('data-mw-product-image-target') || '';
+            var pidIndex = parseInt(productImageEl.getAttribute('data-mw-product-image-index') || '0', 10) || 0;
+            if (typeof window.setProductImage === 'function') {
+                event.preventDefault();
+                window.setProductImage(targetId, src, pidIndex);
+                return;
+            }
+        }
+
+        // (3) Add-and-checkout button — Content / Page skins.
+        var addCheckoutEl = event.target.closest('[data-mw-cart-add-and-checkout]');
+        if (addCheckoutEl) {
+            var itemId = addCheckoutEl.getAttribute('data-mw-cart-add-and-checkout');
+            if (itemId && window.mw && window.mw.cart && typeof window.mw.cart.add_and_checkout === 'function') {
+                event.preventDefault();
+                window.mw.cart.add_and_checkout(itemId);
+                return;
+            }
+        }
+
+        // (4) Pinterest sharer.
+        var pinEl = event.target.closest('[data-mw-pinmarklet]');
+        if (pinEl) {
+            if (window.mw && typeof window.mw.pinMarklet === 'function') {
+                event.preventDefault();
+                window.mw.pinMarklet();
+                return;
+            }
+        }
+
+        // (5) Sharer "Copy link" — Clipboard API with a 2-second "Copied!"
+        // feedback state. The URL + the (translated) done-label ride on
+        // data attributes so no inline onclick is needed (strict CSP).
+        var copyLinkEl = event.target.closest('[data-mw-copy-link]');
+        if (copyLinkEl) {
+            var copyUrl = copyLinkEl.getAttribute('data-mw-copy-link');
+            if (copyUrl && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                event.preventDefault();
+                var doneLabel = copyLinkEl.getAttribute('data-mw-copy-link-done') || 'Copied!';
+                // Icon button (Sharer): swap the link icon for a checkmark via a
+                // CSS class so the <svg> markup is preserved — a textContent swap
+                // would wipe the icon. Text button: swap textContent as before.
+                var isIconCopyLink = !!copyLinkEl.querySelector('.mw-share-copy-link-check');
+                var originalLabel = isIconCopyLink ? null : copyLinkEl.textContent;
+                navigator.clipboard.writeText(copyUrl).then(function () {
+                    if (isIconCopyLink) {
+                        copyLinkEl.classList.add('mw-share-copy-link--copied');
+                        setTimeout(function () { copyLinkEl.classList.remove('mw-share-copy-link--copied'); }, 2000);
+                    } else {
+                        copyLinkEl.textContent = doneLabel;
+                        setTimeout(function () { copyLinkEl.textContent = originalLabel; }, 2000);
+                    }
+                });
+                return;
+            }
+        }
+    }, false);
+
+    // (6) Product variant selects (admin "Variants" tab) — when a variant is
+    // chosen, update the displayed price and the add-to-cart button's data-price
+    // so the UI matches the variant. The authoritative price is still resolved
+    // server-side in CartService; this only keeps the display in sync. Variant
+    // definitions ride on data-mw-variants (JSON) so no inline script is needed.
+    document.addEventListener('change', function (event) {
+        var sel = event.target.closest ? event.target.closest('.mw-variant-select') : null;
+        if (!sel) {
+            return;
+        }
+
+        var holder = sel.closest('.mw-add-to-cart-holder');
+        var wrap = sel.closest('.mw-variant-fields');
+        if (!holder || !wrap) {
+            return;
+        }
+
+        var variants;
+        try {
+            variants = JSON.parse(wrap.getAttribute('data-mw-variants') || '[]');
+        } catch (e) {
+            return;
+        }
+        if (!Array.isArray(variants) || !variants.length) {
+            return;
+        }
+
+        var chosen = {};
+        wrap.querySelectorAll('.mw-variant-select').forEach(function (s) {
+            chosen[s.getAttribute('data-attr-key')] = s.value;
+        });
+
+        var match = null;
+        for (var i = 0; i < variants.length; i++) {
+            var attrs = variants[i].attributes || {};
+            var ok = true;
+            for (var key in chosen) {
+                if (Object.prototype.hasOwnProperty.call(chosen, key) && String(attrs[key]) !== String(chosen[key])) {
+                    ok = false;
+                    break;
+                }
+            }
+            if (ok) {
+                match = variants[i];
+                break;
+            }
+        }
+        if (!match) {
+            return;
+        }
+
+        var prefix = wrap.getAttribute('data-currency-prefix') || '$';
+        var priceText = prefix + Number(match.price).toFixed(2);
+        holder.querySelectorAll('.price-value, .price-holder .price, h5.price, h4.price-value').forEach(function (el) {
+            el.textContent = priceText;
+        });
+        holder.querySelectorAll('.mw-add-to-cart-btn').forEach(function (btn) {
+            btn.setAttribute('data-price', String(match.price));
+        });
+    }, false);
+})();

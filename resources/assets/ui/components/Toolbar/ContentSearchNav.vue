@@ -1,0 +1,93 @@
+<script>
+export default {
+
+    data() {
+        return {
+            selectedContentId: 0,
+            selectedContentTitle: '',
+            liveEditSearchContentField: null,
+        }
+    },
+    mounted() {
+        // task-2026-06-01-ai1206 — AI-1206 consumer-wiring: pass ariaLabel so the dynamic
+        // input created by mw.autoComplete carries an accessible name (WCAG 3.3.2 Level A).
+        this.liveEditSearchContentField = new mw.autoComplete({
+            element: "#mw-live-edit-search-content",
+            placeholder: "Search content",
+            ariaLabel: "Search content",
+            ajaxConfig: {
+                method: 'get',
+                url: mw.settings.api_url + 'get_content_admin?get_extra_data=1&order_by=updated_at desc&is_active=1&is_deleted=0&keyword=${val}'
+            },
+            map: {
+                value: 'id',
+                title: 'title',
+                image: 'picture'
+            },
+            selected: [
+                {
+                    id: 0,
+                    title: '',
+                    placeholder: 'All'
+                }
+            ],
+            listItemDecorate: function(data, node) {
+                node.classList.add(`content-type-${data.content_type}`);
+                const icon = mw.top().app.iconService.icon(data.content_type);
+                if(icon) {
+                    const frag = document.createElement('span');
+                    frag.className = 'form-select-item-icon';
+                    frag.innerHTML = icon;
+                    frag.title = mw.lang(data.content_type.charAt(0).toUpperCase() + data.content_type.slice(1));
+                    node.querySelector('a').prepend(frag)
+                }
+            }
+        });
+
+        $(this.liveEditSearchContentField).on("change", function (e, val) {
+            var urlTogo = false;
+            if (typeof (val[0]) !== 'undefined') {
+                urlTogo = val[0].url;
+
+                mw.app.canvas.dispatch('liveEditCanvasBeforeUnload');
+                mw.app.canvas.getWindow().location.assign(urlTogo)
+
+            }
+        })
+
+        mw.app.canvas.on('liveEditCanvasLoaded', () => {
+            var liveEditIframe = mw.app.canvas.getWindow();
+            var liveEditIframeData = mw.app.canvas.getLiveEditData();
+            if (liveEditIframeData
+                && liveEditIframeData.content
+                && liveEditIframeData.content.id
+                && liveEditIframeData.content.title
+            ) {
+                this.selectedContentId = liveEditIframeData.content.id;
+                this.selectedContentTitle = liveEditIframeData.content.title;
+                this.liveEditSearchContentField.select(
+                    {
+                        id: this.selectedContentId,
+                        title: this.selectedContentTitle,
+                    }
+                ,false);
+            }
+        })
+
+
+
+
+
+
+    },
+    methods: {
+
+
+    }
+}
+</script>
+
+
+<template>
+    <div id="mw-live-edit-search-content"></div>
+</template>

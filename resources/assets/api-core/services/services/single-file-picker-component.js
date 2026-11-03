@@ -1,0 +1,268 @@
+
+import MicroweberBaseClass from "../containers/base-class.js";
+
+export class SingleFilePickerComponent extends MicroweberBaseClass {
+
+    constructor(options = {}) {
+        super();
+        const defaults = {
+            canEdit: true,
+            canDelete: true,
+            element: null,
+            template: null,
+            document,
+            id: mw.id(),
+            accept: 'images',
+            templatePrepare: () => {
+                if (this.file) {
+                    this.root.querySelector(`#js-preview-image-wrapper-${this.id}`).style.display = ``;
+                    this.root.querySelector(`#js-dropzone-image-${this.id}`).style.display = `none`;
+                } else {
+                    this.root.querySelector(`#js-preview-image-wrapper-${this.id}`).style.display = `none`;
+                    this.root.querySelector(`#js-dropzone-image-${this.id}`).style.display = ``;
+                }
+            },
+        }
+
+        this.settings = Object.assign({}, defaults, options);
+        this.document = this.settings.document;
+        this.element = this.settings.element;
+        this.file = this.settings.file;
+        this.id = this.settings.id;
+        if (typeof this.element === 'string') {
+            this.element = this.document.querySelector(this.settings.element);
+        }
+        this.window = this.settings.document.defaultView;
+
+        this.init();
+    }
+
+    templatePrepare() {
+        this.settings.templatePrepare.call(this);
+        this.makePreview();
+        this.root.querySelectorAll('[data-fpc-action="edit"]').forEach(node => {
+            node.disabled = !this.#isImage(this.file);
+        });
+
+    }
+
+    template() {
+        const id = this.id;
+        const template = this.settings.template || `
+            <div class="mw-filepicker-component" id="root-${id}">
+                <div id="js-preview-image-wrapper-${id}" style="display:none">
+                    <div class="d-flex justify-content-between">
+                        <div data-fpc-action="selectFile">
+                             <div data-fpc-action="preview"></div>
+                        </div>
+                        <div class="d-flex gap-2 justify-content-between ms-3">
+                            <div class="form-control-live-edit-label-wrapper d-flex align-items-center">
+                                <button type="button" class="mw-liveedit-button-actions-component btn-sm js-select-file-${id}" data-fpc-action="selectFile" title="${mw.lang('Change')}">
+
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" height="24" viewBox="0 -960 960 960" width="24"><path d="M440-200h80v-167l64 64 56-57-160-160-160 160 57 56 63-63v167ZM240-80q-33 0-56.5-23.5T160-160v-640q0-33 23.5-56.5T240-880h320l240 240v480q0 33-23.5 56.5T720-80H240Zm280-520v-200H240v640h480v-440H520ZM240-800v200-200 640-640Z"/></svg>
+
+                                </button>
+                            </div>
+                            ${this.settings.canEdit ? `
+                            <div class="form-control-live-edit-label-wrapper d-flex align-items-center">
+                                <button type="button" class="mw-liveedit-button-actions-component"  id="js-edit-image-${id}" title="${mw.lang('Edit')}"  data-fpc-action="edit">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" width="24"> <path d="M22.7 14.3L21.7 15.3L19.7 13.3L20.7 12.3C20.8 12.2 20.9 12.1 21.1 12.1C21.2 12.1 21.4 12.2 21.5 12.3L22.8 13.6C22.9 13.8 22.9 14.1 22.7 14.3M13 19.9V22H15.1L21.2 15.9L19.2 13.9L13 19.9M11.21 15.83L9.25 13.47L6.5 17H13.12L15.66 14.55L13.96 12.29L11.21 15.83M11 19.9V19.05L11.05 19H5V5H19V11.31L21 9.38V5C21 3.9 20.11 3 19 3H5C3.9 3 3 3.9 3 5V19C3 20.11 3.9 21 5 21H11V19.9Z"></path></svg>
+                                </button>
+                            </div>
+                            ` : ''}
+                            ${this.settings.canDelete ? `
+                                <div class="form-control-live-edit-label-wrapper d-flex align-items-center">
+                                    <button type="button" class="mw-liveedit-button-actions-component js-remove-file-${id}"  data-fpc-action="remove">
+                                        <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="red"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg>
+                                         </button>
+                                </div>
+
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+
+
+                <div id="js-dropzone-image-${id}" class="dropzone mw-dropzone js-select-file-${id}" style="display:none" data-fpc-action="selectFile">
+                    <div class="d-flex flex-column align-items-center gap-3">
+                        <div class="d-flex align-items-center justify-content-center" style="background:rgba(0,0,0,0.11);color:#000;width:40px;height:40px; border-radius:100%; font-size:28px;">
+                            <i class="mdi mdi-plus"></i>
+                        </div>
+
+                        <div>
+                            <span>
+                                <b>20MB Max</b>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        this.element.innerHTML = template;
+
+        this.launch()
+        this.templatePrepare()
+
+
+        return this;
+
+    }
+
+    #isImage(url) {
+        return /^https?:\/\/.+\.(jpg|jpeg|png|webp|avif|gif|svg)$/.test(url);
+    }
+
+    #isVideo(url) {
+        return /^https?:\/\/.+\.(mp4|ogg|3gp|webm)$/.test(url);
+    }
+
+    #isAudio(url) {
+        return /^https?:\/\/.+\.(mp3)$/.test(url);
+    }
+
+
+
+    previewImage () {
+        return `<img src="${this.file}" class="w-100" style="border-radius:4px;">`;
+    }
+
+    previewVideo () {
+        return `<video width="100px" src="${this.file}" muted loop playsinline style="border-radius:4px;"></video>`;
+    }
+
+    previewAudio () {
+        return `<video width="100px" src="${this.file}" controls playsinline style="border-radius:4px;"></video>`;
+    }
+
+    generatePreview() {
+        if(this.#isImage(this.file)){
+            return this.previewImage();
+        } else if(this.#isVideo(this.file)){
+            return this.previewVideo();
+        } else if(this.#isAudio(this.file)){
+            return this.previewAudio()
+        }
+        return '';
+    }
+
+    makePreview() {
+        const previewNodes = this.root.querySelectorAll('[data-fpc-action="preview"]');
+
+        if(!this.file) {
+            previewNodes.forEach(node => {
+                node.innerHTML = '';
+            });
+        } else {
+            previewNodes.forEach(node => {
+                const preview = this.generatePreview();
+
+                node.dataset.preview = !!preview;
+                node.innerHTML = preview;
+
+            });
+        }
+    }
+
+    setFile(src) {
+        this.file = src;
+        this.templatePrepare();
+    }
+
+    removeFile() {
+
+
+        const previewNodes = this.root.querySelectorAll('[data-fpc-action="preview"]');
+        this.file = null;
+        this.root.querySelectorAll('[data-fpc-action="preview"]');
+        previewNodes.forEach(node => {
+
+            node.innerHTML = '';
+        });
+        this.templatePrepare();
+    }
+
+    #eventsHandles = {
+        edit: async (event, node, scope) => {
+            var result = await mw.top().app.editImageDialog.editImageUrl(this.file);
+            if(result) {
+                this.file = result.src || result;
+                this.templatePrepare();
+                this.dispatch('change')
+                this.dispatch('edit')
+            }
+        },
+        remove: (event, node, scope) => {
+            this.removeFile();
+            this.dispatch('change')
+            this.dispatch('remove')
+        },
+        selectFile: (event, node, scope) => {
+            var dialog;
+            var picker = new mw.filePicker({
+                type: this.settings.accept,
+                label: false,
+                autoSelect: false,
+                footer: true,
+                _frameMaxHeight: true,
+                onResult: (res) => {
+                    var url = res.src ? res.src : res;
+                    if(!url) return;
+                    url = url.toString();
+                    this.file = url;
+                    this.templatePrepare();
+                    dialog.remove();
+                    this.dispatch('change')
+                    this.dispatch('selectFile')
+                }
+            });
+            dialog = mw.top().dialog({
+                id: 'mw-file-picker-dialog',
+                // Re-use the link-picker modal's class so the file
+                // picker (the "Select image / file" dialog launched
+                // from inside Filament forms like Add New Post)
+                // inherits the modern centered/rounded modal chrome
+                // and the styling for the AI prompt sub-tab. Without
+                // this it falls back to the legacy mw-dialog default
+                // skin and renders pinned to the top of the iframe
+                // with unstyled Cancel/OK buttons —
+                // task-2026-04-29-359bf3.
+                className: 'mw_modal_live_edit_link_editor_settings',
+                content: picker.root,
+                title: mw.lang('Select file'),
+                footer: false,
+                width: 860
+            })
+        }
+    };
+
+    handleEvents() {
+        this.root.querySelectorAll('[data-fpc-action]').forEach(node => {
+            const action = node.dataset.fpcAction.trim();
+            if (action && this.#eventsHandles[action]) {
+                node.addEventListener('click', e => this.#eventsHandles[action](e, node, this));
+            }
+        })
+    }
+
+    launch() {
+        this.root = this.document.getElementById(`root-${this.id}`);
+        this.handleEvents()
+    }
+
+
+    init() {
+
+        if(!this.element) {
+            return;
+        }
+
+
+        this.template();
+        return this;
+
+    }
+}
+
+
+
+

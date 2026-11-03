@@ -1,0 +1,320 @@
+import BaseComponent from "../../containers/base-class.js";
+import liveEditHelpers from "../../../core/live-edit-helpers.service.js";
+
+export class LiveEditLayoutBackground extends BaseComponent {
+    constructor() {
+        super();
+
+    }
+
+    getBackgroundCursor(node) {
+        var bgCusrorUrl = null;
+
+        if (node && node.style) {
+            var bg = node.style.cursor;
+            if (bg) {
+                bgCusrorUrl = bg;
+            }
+        }
+
+        //try get from computed
+        if (!bgCusrorUrl && node && node.ownerDocument && node.ownerDocument.defaultView) {
+            var computedStyle = node.ownerDocument.defaultView.getComputedStyle(node);
+            if (computedStyle && computedStyle.cursor) {
+                bgCusrorUrl = computedStyle.cursor;
+            }
+        }
+
+        if (!bgCusrorUrl) {
+            var layoutNode = mw.top().app.liveEdit.getSelectedLayoutNode();
+
+            if (layoutNode && layoutNode.style && layoutNode.style.cursor) {
+                bgCusrorUrl = layoutNode.style.cursor;
+            }
+        }
+
+        // Extract URL from cursor property if it exists
+        if (bgCusrorUrl) {
+            console.log('Original cursor value:', bgCusrorUrl);
+            if (bgCusrorUrl.includes('url(')) {
+                var match = bgCusrorUrl.match(/url\(['"]?([^'")\s]+)['"]?\)/);
+                if (match && match[1]) {
+                    bgCusrorUrl = match[1];
+                }
+            } else if (bgCusrorUrl.includes(' ')) {
+                // Handle cases where cursor value is already parsed (e.g., "http://example.com/image.gif 0 0, auto")
+                var parts = bgCusrorUrl.split(' ');
+                console.log('Split parts:', parts);
+                if (parts.length > 0) {
+                    bgCusrorUrl = parts[0];
+                }
+            }
+            console.log('Final cursor URL:', bgCusrorUrl);
+        }
+
+        return bgCusrorUrl;
+    }
+    setBackgroundCursor(node, url) {
+        mw.app.registerUndoState(node);
+        mw.app.registerAskUserToStay(true);
+
+
+        mw.top().app.cssEditor.temp(node, 'cursor',  `url("${url}") 0 0, auto`);
+
+        mw.top().app.registerChangedState(node);
+    }
+    getBackgroundImage(node) {
+
+        if(node && node.style){
+            var bg = node.style.backgroundImage;
+            if (bg) {
+                bg = bg.replace('url(', '');
+                bg = bg.replace(')', '');
+                bg = bg.replace(/\"/gi, "");
+            }
+            return bg;
+        }
+
+    }
+    setBackgroundImage(node, url) {
+        mw.app.registerUndoState(node);
+        mw.app.registerAskUserToStay(true);
+        let bg
+
+
+
+        if (!url) {
+            bg = 'none'
+        } else {
+            url = url.toString();
+            bg = `url(${url})`
+        }
+
+
+        node.innerHTML = ``;
+        node.style.backgroundImage = bg;
+
+        node.style.backgroundColor = 'transparent';
+
+
+        var isInsideBackgroundModule = liveEditHelpers.targetGetFirstModuleOfType(node, 'background');
+        if (isInsideBackgroundModule) {
+
+            //set bg image option
+            var optionsBg = {
+                group: isInsideBackgroundModule.id,
+                key: 'data-background-image',
+                module: 'background',
+                value: url
+            };
+            mw.top().options.tempOption(isInsideBackgroundModule, optionsBg);
+
+            if(url != '') {
+
+                //remove bg video option
+                var optionsVideo = {
+                    group: isInsideBackgroundModule.id,
+                    key: 'data-background-video',
+                    module: 'background',
+                    value: 'none'
+                };
+                mw.top().options.tempOption(isInsideBackgroundModule,optionsVideo);
+
+            }
+
+
+        }
+
+        delete node.dataset.mwvideo;
+        mw.top().app.registerChangedState(node);
+
+    }
+
+    getBackgroundImageSize(node) {
+        if(node && node.style){
+            var bg = node.style.backgroundSize;
+            return (bg || '').trim() || 'auto';
+        }
+    }
+
+    setBackgroundImageSize(node, url) {
+        mw.app.registerUndoState(node);
+        mw.app.registerAskUserToStay(true);
+        let bg
+
+
+
+        if (!url) {
+            bg = 'auto'
+        } else {
+            url = url.toString();
+            bg = url
+        }
+
+
+        node.innerHTML = ``;
+        node.style.backgroundSize = bg;
+
+
+
+
+        var isInsideBackgroundModule = liveEditHelpers.targetGetFirstModuleOfType(node, 'background');
+
+        console.log(isInsideBackgroundModule, node);
+        if (isInsideBackgroundModule) {
+
+            //set bg image option
+            var optionsBg = {
+                group: isInsideBackgroundModule.id,
+                key: 'data-background-size',
+                module: 'background',
+                value: url
+            };
+            mw.top().options.tempOption(isInsideBackgroundModule, optionsBg);
+
+
+
+
+        }
+
+
+        mw.top().app.registerChangedState(node);
+
+    }  
+    
+    getBackgroundVideo(node){
+        if(node && node.dataset && node.dataset.mwvideo){
+            return node.dataset.mwvideo;
+        }
+        
+        // Check if there's a video element inside the node
+        if(node) {
+            var videoElement = node.querySelector('video');
+            if(videoElement && videoElement.src) {
+                return videoElement.src;
+            }
+        }
+        
+        return null;
+    }
+
+    setBackgroundVideo(node, url) {
+        mw.app.registerAskUserToStay(true);
+        mw.app.registerUndoState(node);
+        if(!url) {
+            url = ''
+        }
+        url = url.toString();
+        if (url == '') {
+            node.innerHTML = "";
+            delete node.dataset.mwvideo;
+        } else {
+            node.innerHTML = `<video src="${url}" autoplay muted loop playsinline></video>`;
+            node.dataset.mwvideo = url;
+        }
+
+
+        node.style.backgroundImage = null;
+
+        node.style.backgroundColor = null;
+
+
+        var isInsideBackgroundModule = liveEditHelpers.targetGetFirstModuleOfType(node, 'background');
+        if (isInsideBackgroundModule) {
+            if(url != '' && url != 'none') {
+                //remove bg image option
+                var optionsBg = {
+                    group: isInsideBackgroundModule.id,
+                    key: 'data-background-image',
+                    module: 'background',
+                    value: 'none'
+                };
+
+                mw.top().options.tempOption(isInsideBackgroundModule, optionsBg);
+            }
+           //set bg video option
+            var optionsVideo = {
+                group: isInsideBackgroundModule.id,
+                key: 'data-background-video',
+                module: 'background',
+                value: url
+            };
+
+            mw.top().options.tempOption(isInsideBackgroundModule,optionsVideo);
+
+        }
+
+
+
+        mw.top().app.registerChangedState(node);
+
+    }
+    getBackgroundPosition(node){
+        if(node && node.style){
+            var bg = node.style.backgroundPosition;
+            if (bg) {
+                return bg;
+            }
+        }
+    }
+    setBackgroundPosition(node,position) {
+        mw.app.registerUndoState(node);
+        mw.app.registerAskUserToStay(true);
+        node.style.backgroundPosition = position;
+        mw.top().app.registerChangedState(node);
+
+    }
+    getBackgroundColor(node){
+        if(node && node.style){
+            var bg = node.style.backgroundColor;
+
+            if (bg) {
+                return bg;
+            }
+        }
+    }
+    setBackgroundColor(node,color) {
+        mw.app.registerUndoState(node);
+
+        if(color==''){
+            node.style.backgroundColor = null;
+        } else {
+            node.style.backgroundColor = color;
+        }
+
+        node.style.backgroundImage = 'transparent';
+        delete node.dataset.mwvideo;
+
+
+        mw.app.registerAskUserToStay(true);
+        var isInsideBackgroundModule = liveEditHelpers.targetGetFirstModuleOfType(node, 'background');
+        if (isInsideBackgroundModule) {
+
+            //set bg image option
+            var optionsBg = {
+                group: isInsideBackgroundModule.id,
+                key: 'data-background-color',
+                module: 'background',
+                value: color
+            };
+
+            mw.top().options.tempOption(isInsideBackgroundModule,optionsBg);
+
+
+        }
+
+
+
+
+
+        mw.top().app.registerChangedState(node);
+    }
+
+
+
+
+
+
+}
+
+export default LiveEditLayoutBackground;

@@ -1,0 +1,72 @@
+<template>
+    <div class="form-control-live-edit-label-wrapper my-4 mx-3">
+
+        <select :value="selectedShadow" @change="selectPredefinedShadow" style="display: none;">
+            <option v-for="(shadow, index) in predefinedShadows" :key="index" :value="shadow.value"
+                    :style="{ boxShadow: shadow.value || 'none' }">
+
+                {{ shadow.name }}
+
+            </option>
+        </select>
+
+            <div class="row">
+                <div
+                    class="card "
+                    :class="{ active: selectedShadow ===  shadow.value}"
+                    @click="selectPredefinedShadow"
+                    v-for="(shadow, index) in predefinedShadows"
+                    :key="index"
+                    :value="shadow.value"
+                    :style="{ boxShadow: shadow.value || 'none', width: '50px', height: '50px' }">
+                </div>
+            </div>
+
+    </div>
+</template>
+
+<style scoped>
+
+    .row{
+        gap: 22px;
+        align-items: center;
+        justify-content: center;
+    }
+    .card.active{
+        background: var(--ese-accent-soft, rgba(24, 36, 51, 0.10));
+        transition: background-color .3s;
+    }
+    .card::after{
+        content: '\2713';
+        color: var(--ese-accent, #182433);
+        font-weight: bold;
+        font-size: 0;
+    }
+    .card.active::after{
+        transition: font-size .3s;
+        font-size: 24px;
+    }
+    .card{
+        min-height: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+    }
+</style>
+
+<script>
+export default {
+    props: {
+        predefinedShadows: Array,
+        selectedShadow: String
+    },
+    methods: {
+        selectPredefinedShadow(event) {
+            const selectedShadow = event.target.value || event.target.getAttribute('value');
+            this.$emit('update:selectedShadow', selectedShadow);
+
+        }
+    }
+};
+</script>

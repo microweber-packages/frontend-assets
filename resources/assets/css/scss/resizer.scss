@@ -1,0 +1,164 @@
+.mw-le-resizable {
+    position: relative;
+    &.mw-le-resizable-disabled{
+        .mw-le-resizer{
+            display: none;
+        }
+    }
+}
+/* task-2026-05-27-de93c9 / AI-1172: expand touch target to 44px via pseudo-element */
+.mw-le-resizer {
+    position: absolute;
+    pointer-events: all;
+}
+
+.mw-le-resizer-r {
+    cursor: e-resize;
+    height: 100%;
+    right: 0;
+    top: 0;
+    width: 5px;
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: -19px;
+        width: 44px;
+        height: 100%;
+        cursor: e-resize;
+    }
+}
+
+.mw-le-resizer-l {
+    cursor: e-resize;
+    height: 100%;
+    left: 0;
+    top: 0;
+    width: 5px;
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -19px;
+        width: 44px;
+        height: 100%;
+        cursor: e-resize;
+    }
+}
+
+.mw-le-resizer-b {
+    bottom: 0;
+    cursor: n-resize;
+    height: 5px;
+    left: 0;
+    width: 100%;
+    &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        bottom: -19px;
+        width: 100%;
+        height: 44px;
+        cursor: n-resize;
+    }
+}
+
+.module-spacer:not(:last-child) .mw-le-resizer-b {
+    top: 0;
+}
+
+.mw-le-resizer-t {
+    top: 0;
+    cursor: n-resize;
+    height: 5px;
+    left: 0;
+    width: 100%;
+    &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: -19px;
+        width: 100%;
+        height: 44px;
+        cursor: n-resize;
+    }
+}
+
+[data-hide-resizer="true"],
+[data-mw-free-element="true"] {
+    .mw-le-resizer{
+        display: none !important;
+    }
+}
+[data-hide-outline="true"],
+[data-mw-free-element="true"] {
+    border-color: transparent !important
+}
+
+.moveable-control-box{
+    .moveable-control{
+        border: 1px solid #056aff !important;
+        border-radius: 2px !important;
+        background: #ffffff !important;
+        width: 10px !important;
+        height: 10px !important;
+        margin-left: -5px !important;
+        margin-top: -5px !important;
+    }
+}
+
+.mw-le-resizable--info{
+    position: absolute;
+    z-index: 11;
+    font-size: 12px;
+    letter-spacing: .5px;
+    pointer-events: none !important;
+
+    &.mw-le-resizable--info-position--top{
+        left: 50%;
+        bottom: 100%;
+        transform: translate(-50%, -10px);
+    }
+    &.mw-le-resizable--info-position--bottom{
+        left: 50%;
+        top: 100%;
+        transform: translate(-50%, 10px);
+    }
+
+    .mw-le-resizable--info-content{
+        display: inline-block;
+        text-align: center;
+        background-color: #056aff;
+        color: white;
+        border-radius: 5px;
+        padding: 5px 10px;
+
+        pointer-events: none !important;
+    }
+}
+
+
+.mw-layout-container.mw-free-layout-container > .edit{
+    pointer-events: none;
+    &>.element, &>.module {
+        pointer-events: all;
+    }
+}
+
+/* task-2026-05-27-c4n0v1 — neutralize AI-1172 resizer ::before 44px expansion at
+   mobile breakpoints. The pseudo extends 19px beyond parent edges via
+   right:-19px / left:-19px / top:-19px / bottom:-19px to widen the touch
+   target. At the viewport edges this 19px ghosts past <body>, inflating
+   bodyScrollWidth by 19px and producing a horizontal scrollbar inside the
+   canvas iframe. Drag-resize of a 5px handle is not usable on touch anyway —
+   element/spacer dimension edits happen via the right-rail Advanced panel
+   on mobile. Pseudo gets display:none below 769px (the existing live-edit
+   mobile breakpoint per live-edit-mobile.css). */
+@media (max-width: 768px) {
+    .mw-le-resizer-r::before,
+    .mw-le-resizer-l::before,
+    .mw-le-resizer-t::before,
+    .mw-le-resizer-b::before {
+        display: none;
+    }
+}

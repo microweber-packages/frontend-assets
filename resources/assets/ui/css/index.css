@@ -1,0 +1,2372 @@
+@charset "UTF-8";
+/*@import '../../css/microweber/css/default.css';*/
+
+html {
+    --toolbar-static-height: 70px;
+    /*
+       task-2026-05-16-ec0c87 / AI-698a — toolbar height compressed
+       60px → 48px per designer spec (live-edit-inspiration-from-v2-
+       2026-05-16.md §2 P2; matches ESE spec §3.2 mobile-header
+       height). The token cascades to every consumer in this file
+       (`#toolbar`, `#live-edit-frame-holder` top + height calc,
+       SaveButton row), plus the AI-697 anchored picker modal that
+       reads `var(--toolbar-height, 60px)` — its top offset moves
+       up 12px to stay flush with the new toolbar bottom edge.
+
+       The 9-element-row compression (device-preview into
+       MwSegmented, 3 tools under `⋯ Tools` popover, `☰` hamburger
+       replacing side-panel triggers) ships as AI-698b alongside
+       AI-700 (drawer consolidation) so the hamburger has a real
+       drawer to open. Sub-slicing rationale: AI-698a is the
+       height-lock foundation; AI-698b is the layout grouping.
+    */
+    /* task-2026-06-13-letoolbarstyle — restored to 60px to match the released
+       v2.0.20 toolbar (demo.microweber.org) per user request ("old design is
+       better, match it"). The AI-698a 48px compression read as too cramped; the
+       60px bar gives the 36px buttons the original breathing room. Layout
+       grouping from AI-698b (segmented device switch, ⋯ Tools, ☰) is kept —
+       this is a styling-only alignment, not a structural revert. */
+    --toolbar-height: 60px;
+    --toolbar-height-animation-speed: 0.4s;
+
+    --iframe-height-minus: 0px;
+
+    --tblr-body-color: #fff;
+    --tblr-active-bg: #182433;
+    --tblr-bg-surface: #fff;
+    --tblr-body-bg: #f5f5f5;
+    --tblr-body-bg2: #f4f4f4;
+
+    /* ── Live Edit redesign ("Pagy") token foundation — Phase 1 (additive only) ──
+       task-2026-09-10-le-redesign. These are NEW tokens for the in-place redesign.
+       NEUTRAL grays + radius are wired into the shell in Phase 2.
+       ACCENT — USER DECISION (2026-09-10): keep brand INK #182433, NOT the designer's
+       indigo #4F63E8. So --le-accent == the existing --ese-accent / .element-active ink;
+       those stay untouched and their contract tests (Ai513, ESE11812b) stay green.
+       The redesign lands the Pagy LAYOUT + neutral grays with the ink accent. */
+    --le-accent: #182433;      /* brand ink — user chose ink over designer indigo */
+    --le-canvas: #F3F3F1;      /* editor canvas background */
+    --le-page: #E9E9E6;        /* page/backdrop */
+    --le-frame: #ffffff;       /* centered page-frame surface */
+    --le-ink: #1C1C1A;         /* primary text */
+    --le-muted: #77776F;       /* muted text */
+    --le-hairline: #E6E6E2;    /* dividers / borders */
+    --le-radius-frame: 14px;   /* frames / cards */
+    --le-radius-control: 8px;  /* buttons / inputs / chips */
+}
+
+/* Dark re-flip for the additive neutral tokens (top window toggles html.dark).
+   Specificity (0,1,1) so it wins by load order over the html{} defaults above.
+   Accent stays the same value in both themes; grays invert toward near-black. */
+html.dark {
+    --le-canvas: #0B0B0C;
+    --le-page: #000000;
+    --le-frame: #ffffff;       /* the page frame stays WHITE in dark (it is the real site) */
+    --le-ink: #E9E9E6;
+    --le-muted: #9a9a90;
+    --le-hairline: #23232a;
+}
+
+*,
+*:before,
+*:after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html,
+body {
+    overflow: hidden;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
+    font-family: "Inter", sans-serif;
+    color: #2b2b2b;
+}
+
+a {
+    text-decoration: none;
+    color: #2b2b2b;
+}
+
+/* task-2026-05-27 — Sidebar is 60 px wide at desktop; the old right: 50px
+ * caused a 10 px overlap where the canvas bled under the sidebar. Corrected
+ * to 60px to match the actual sidebar width. The existing @media (max-width:
+ * 767px) downstream already resets right: 0 for mobile (sidebar overlays
+ * the canvas there). */
+#live-edit-frame-holder {
+    position: fixed;
+    top: var(--toolbar-height);
+    left: 0;
+    right: 60px;
+    height: calc(100% - var(--toolbar-height) - var(--iframe-height-minus));
+    bottom: calc(0px - var(--iframe-height-minus));
+    transition: var(--toolbar-height-animation-speed);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    overflow: hidden;
+    /* LE redesign Phase 2a — neutral canvas behind a centered page-frame card.
+       --le-canvas auto-flips to near-black under html.dark (token reflip in html{}),
+       so dark chrome comes for free; the frame itself stays white (--le-frame). */
+    background: var(--le-canvas, #F3F3F1);
+    padding: 18px 18px 22px;
+}
+
+#live-editor-frame.resizing {
+    transition: all var(--toolbar-height-animation-speed);
+}
+#live-editor-frame {
+    width: 100%;
+    height: 100%;
+    min-width: 340px;
+    max-width: 100%;
+    resize: horizontal;
+    /* LE redesign Phase 2a — the canvas reads as a centered white card on the
+       neutral canvas. Square corners (no radius) per user request. */
+    background: var(--le-frame, #fff);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.10), 0 12px 30px rgba(0, 0, 0, 0.07);
+}
+/* Frame stays white in dark (page = real site); deepen the shadow so the card
+   still reads against the near-black canvas. */
+html.dark #live-editor-frame {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), 0 14px 34px rgba(0, 0, 0, 0.5);
+}
+
+#toolbar {
+    height: var(--toolbar-height);
+    left: 0;
+    right: 0;
+    max-width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--tblr-bg-surface, #ffffff);
+    display: flex;
+    position: relative;
+    z-index: 999;
+    transition: var(--toolbar-height-animation-speed);
+}
+
+html.live-edit-gui-editor-opened #live_edit_side_holder {
+    width: calc(100% - var(--sidebar-end-size));
+}
+
+/* task-2026-09-06-darkaudit — only the LEFT-docked Layers panel shifts the
+   canvas right. The admin drawer now opens as a RIGHT overlay but reuses
+   `mw-live-edit-sidebar-start` (for its expanded-label styling); excluding
+   `.mw-live-edit-admin-open` stops it pushing the canvas 250px right, which had
+   exposed a black gap on the left. */
+html.mw-live-edit-sidebar-start:not(.mw-live-edit-admin-open) #live_edit_side_holder {
+    left: var(--sidebar-start-size);
+    max-width: calc(100% - var(--sidebar-start-size));
+}
+html.mw-live-edit-sidebar-start:not(.mw-live-edit-admin-open).live-edit-gui-editor-opened
+    #live_edit_side_holder {
+    max-width: calc(100% - var(--sidebar-start-size) - var(--sidebar-end-size));
+}
+
+@media (min-width: 1050px) {
+    .add-content-button-svg {
+        display: flex !important;
+    }
+}
+
+.live-edit-toolbar-buttons-view {
+    display: none !important;
+}
+
+.mw-live-edit-right-sidebar-wrapper {
+    display: flex !important;
+}
+
+@media (min-width: 815px) {
+    .toolbar-col-container {
+        display: flex !important;
+        align-items: center;
+    }
+}
+
+@media (min-width: 730px) {
+    .live-edit-undo-redo-buttons-wrapper,
+    .mw-live-edit-resolutions-wrapper {
+        display: flex !important;
+    }
+}
+
+@media (min-width: 328px) {
+    .live-edit-toolbar-buttons-view {
+        display: flex !important;
+    }
+}
+
+html.preview #live-edit-frame-holder {
+    right: 0;
+}
+html.preview .mw-live-edit-right-sidebar-template-sidebar {
+    display: none !important;
+}
+html.preview #toolbar {
+    overflow: hidden;
+}
+
+@media (max-width: 1200px) {
+    #preview-nav {
+        display: none;
+    }
+}
+
+#preview-nav .btn.active,
+.toolbar-nav .btn.active {
+    background-color: var(--tblr-bg-surface, #ffffff);
+    transition: 0.3s;
+}
+
+.toolbar-nav {
+    background-color: var(--tblr-bg-surface, #ffffff);
+    border-radius: 100px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    gap: 5px;
+    vertical-align: top;
+}
+.toolbar-nav.mw-editor-area-wrapper-empty {
+    display: none;
+}
+
+.toolbar-nav:empty {
+    display: none;
+}
+
+.toolbar-nav-hover {
+    background-color: transparent;
+}
+
+#live-edit-frame-holder.has-mw-spinner:after {
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+}
+
+#user-menu-wrapper #user-menu {
+    position: absolute;
+}
+
+#user-menu-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: var(--toolbar-height);
+    transition: 0.4s;
+}
+
+#user-menu nav {
+    padding: 15px 0;
+}
+
+#user-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    opacity: 0;
+    transform: scale(0.8) translateY(-20px);
+    pointer-events: none;
+    transition: 0.4s;
+    width: 220px;
+    transform-origin: right top;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    background-color: #fff !important;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+#user-menu-header {
+    border-bottom: 1px solid #d7d7d7;
+}
+
+#user-menu-header h3 {
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 18px;
+    padding: 0 0 10px;
+}
+
+#user-menu-wrapper.active #user-menu {
+    opacity: 1;
+    transform: scale(1) translateY(0px);
+    pointer-events: auto;
+}
+
+html.dark #user-menu {
+    background-color: #1f2937 !important;
+    color: #e5e7eb;
+}
+
+html.dark #user-menu nav a {
+    color: #e5e7eb;
+}
+
+html[dir="rtl"] #user-menu {
+    left: 0;
+    right: auto;
+}
+
+.active > .mw-le-hamburger > span:nth-child(2) {
+    width: 40px;
+    height: 40px;
+    border-radius: 50px;
+    background-color: rgb(255 255 255 / 19%);
+    left: -8px;
+    top: -11px;
+}
+
+.mw-le-hamburger > span:first-child {
+    transform-origin: right center;
+}
+
+.mw-le-hamburger > span:last-child {
+    transform-origin: right bottom;
+}
+
+.active > .mw-le-hamburger {
+    transform: rotate(-90deg);
+}
+
+.active > .mw-le-hamburger > span:first-child {
+    transform: rotate(-45deg) translate(-2px, -3px);
+}
+
+.active > .mw-le-hamburger > span:last-child {
+    transform: rotate(45deg) translate(-2px, 4px);
+}
+
+/* Editor */
+
+.mw-editor-le2
+    .mw-editor-controller-button.mw-editor-group-button
+    .mw-editor-group-button-caret:hover {
+    background-color: rgba(0, 0, 0, 0.29);
+}
+
+.mw-editor-le2
+    .mw-editor-controller-button.mw-editor-group-button
+    .mw-editor-group-button-caret {
+    display: flex;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.mw-editor-le2 .mw-editor-controller-button.mw-editor-group-button {
+    margin: 0;
+    padding: 0;
+}
+
+.mw-editor-le2 .mw-bar-control-item-group {
+    padding: 0;
+}
+
+.mw-editor-le2 mw-editor-button,
+.mw-editor-le2 .mw-bar-control-item-group {
+    border-radius: 3px;
+}
+
+.mw-editor-le2 .mw-bar-control-item-group:hover,
+.mw-editor-le2 mw-editor-button:hover {
+    background-color: rgba(0, 0, 0, 0.19);
+}
+
+.mw-editor-le2
+    .mw-editor-group-button
+    mw-editor-button.mw-editor-controller-component {
+    border-right: 1px solid transparent;
+}
+
+.mw-editor-le2
+    .mw-editor-group-button
+    mw-editor-button.mw-editor-controller-component:hover {
+    border-right-color: #eeeeee36;
+}
+
+.mw-editor-le2 .mw-editor-controller-component,
+.mw-editor-le2 .mw-bar-control-item {
+    display: inline-flex;
+    position: relative;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+    color: inherit;
+}
+
+.mw-editor-le2 .mw-editor-option-dropdown-h1 {
+    font-size: 30px;
+}
+
+.mw-editor-le2 .mw-editor-option-dropdown-h2 {
+    font-size: 27px;
+}
+
+.mw-editor-le2 .mw-editor-option-dropdown-h3 {
+    font-size: 25px;
+}
+
+.mw-editor-le2 .mw-editor-option-dropdown-h4 {
+    font-size: 22px;
+}
+
+.mw-editor-le2 .mw-editor-option-dropdown-h5 {
+    font-size: 20px;
+}
+
+.mw-editor-le2 .mw-editor-option-dropdown-h6 {
+    font-size: 17px;
+}
+
+.mw-editor-le2
+    .mw-editor-controller-component-select
+    .mw-editor-controller-component-select-values-holder {
+    background-color: var(--tblr-bg-surface, #ffffff);
+    border-radius: 0 0 10px 10px;
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.mw-editor-le2 .mw-bar-control-item-group-contents {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: -4px;
+    padding: 5px;
+    white-space: nowrap;
+
+    background-color: var(--tblr-bg-surface, #ffffff);
+    border-radius: 0 0 10px 10px;
+    box-shadow: rgba(50, 50, 93, 0.25) 0px 2px 5px -1px,
+        rgba(0, 0, 0, 0.3) 0px 1px 3px -1px;
+}
+
+.mw-bar-control-item.active .mw-bar-control-item-group-contents {
+    display: block;
+}
+
+.mw-editor-le2 mw-editor-button {
+    cursor: pointer;
+    color: var(--tblr-card-title-color, #182433);
+}
+
+.mw-editor-le2 iframe {
+    border: none;
+}
+
+.mw-editor-le2 .mw-editor-dropdown-option {
+    padding: 10px 10px;
+    white-space: nowrap;
+    font-size: 14px;
+}
+
+.mw-editor-le2 .mw-editor-dropdown-option:hover {
+    background-color: rgba(0, 0, 0, 0.06);
+}
+
+.mw-editor-le2 .mw-editor-dropdown-option.mw-editor-dropdown-option-active,
+.mw-editor-le2
+    .mw-editor-dropdown-option.mw-editor-dropdown-option-active:hover {
+    background-color: #182433;
+    color: #fff;
+}
+
+.mw-editor-le2 .mw-editor-controller-component-select-values-holder {
+    max-height: calc(100vh - 120px) !important;
+}
+
+.mw-editor-le2 .mw-bar-control-item {
+    position: relative;
+}
+
+.mw-editor-le2 .mw-editor-controller-component[data-tooltip]:after {
+    position: absolute;
+    content: attr(data-tooltip);
+    background: rgba(80, 83, 86, 1);
+    color: #fff;
+    font-size: 11px;
+    font-weight: bold;
+    border-radius: 3px;
+    padding: 5px;
+    bottom: 86%;
+    left: 50%;
+    transform: translateX(-50%) scale(1);
+    opacity: 0;
+    pointer-events: none;
+    transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    line-height: normal;
+    white-space: nowrap;
+}
+
+.mw-editor-le2 .mw-editor-controller-component[data-tooltip]:hover:after,
+.mw-editor-le2 .mw-editor-controller-component[data-tooltip]:focus:after {
+    opacity: 1;
+    margin-top: 0;
+    bottom: 100%;
+    transform: translateX(-50%) scale(1);
+}
+
+/* /editor*/
+
+.toolbar-col {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 20px;
+    /*
+     * task-2026-05-17-b91c0c / AI-810 — anchor .toolbar-col to the
+     * toolbar's height token so the right col never produces a
+     * negative-y clipping even if a future child component grows
+     * beyond the 48px (--toolbar-height) budget. Belt-and-braces
+     * defense in addition to the Toolbar.vue flex-nowrap fix on the
+     * inner row. Items inside .toolbar-col stay vertically centred
+     * within this 48px frame regardless of natural content height.
+     */
+    min-height: var(--toolbar-height);
+    height: var(--toolbar-height);
+    align-items: center;
+}
+.toolbar-col-container {
+    align-self: center;
+}
+
+#preview-button {
+    position: fixed;
+    top: calc(var(--toolbar-static-height) / 2);
+    right: 80px;
+    transform: translateY(-50%);
+    z-index: 10;
+}
+
+#preview-button:after {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    content: "";
+    width: 4px;
+    height: 100%;
+    background-color: white;
+    transform: rotate(45deg) scale(0);
+    border-left: 2px solid #464646;
+    transition: 0.4s;
+    opacity: 0;
+    margin-left: -1px;
+}
+
+html.preview #preview-button:after {
+    transform: rotate(45deg) scaleY(1);
+    opacity: 1;
+}
+
+html.preview #preview-button {
+    box-shadow: rgba(0, 0, 0, 0.3) 0px 19px 38px,
+        rgba(0, 0, 0, 0.22) 0px 15px 12px;
+}
+
+/*.modules-list-block {*/
+/*    max-width: 960px !important;*/
+/*    margin: 0 auto !important;*/
+/*    max-height: 960px !important;*/
+/*}*/
+
+.modules-list-block-item-is-locked-true:before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-color: rgba(255, 255, 255, 0.7);
+    background-image: url("data:image/svg+xml,%3Csvg fill='%23c82c2c' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ctitle%3Elock-outline%3C/title%3E%3Cpath d='M12,17C10.89,17 10,16.1 10,15C10,13.89 10.89,13 12,13A2,2 0 0,1 14,15A2,2 0 0,1 12,17M18,20V10H6V20H18M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6C4.89,22 4,21.1 4,20V10C4,8.89 4.89,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z' /%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 24px auto;
+
+    z-index: 2;
+}
+
+/* layouts dialog */
+.mw-le-layouts-dialog {
+    --layouts-dialog-height: calc(100vh - 50px);
+    --layouts-dialog-toolbar-height: 60px;
+    overflow: hidden;
+}
+
+.mw-le-dialog-block.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.mw-le-dialog-block {
+    position: fixed;
+    z-index: 1000;
+    box-shadow: rgba(0, 0, 0, 0.25) 0px 54px 55px,
+        rgba(0, 0, 0, 0.12) 0px -12px 30px, rgba(0, 0, 0, 0.12) 0px 4px 6px,
+        rgba(0, 0, 0, 0.17) 0px 12px 13px, rgba(0, 0, 0, 0.09) 0px -3px 5px;
+    transition: 0.4s;
+    opacity: 0;
+    visibility: hidden;
+}
+
+.mw-le-layouts-dialog {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: calc(100vw - 60px);
+    height: calc(100vh - 60px);
+    min-height: 100px;
+    width: 1650px;
+    background-color: #ececec !important;
+}
+html.dark .mw-le-layouts-dialog {
+    @apply text-white;
+    background-color: rgb(31 41 55) !important;
+}
+
+.mw-le-layouts-dialog .modules-list {
+    background-color: #ececec;
+    height: 100%;
+}
+html.dark .mw-le-layouts-dialog .modules-list {
+    background-color: rgb(31 41 55);
+}
+
+.mw-le-layouts-dialog-row {
+    position: relative;
+    height: var(--layouts-dialog-height);
+    overflow: auto;
+}
+
+.mw-le-layouts-dialog-col:first-child {
+    width: 255px;
+    left: 0;
+    top: 0;
+    position: absolute;
+    height: 100%;
+}
+
+.mw-le-layouts-dialog-col:last-child {
+    height: 100%;
+    position: absolute;
+    left: 255px;
+    right: 0;
+    top: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+ * AI-714 — Add Layouts modal mobile category filter
+ * task-2026-05-16-8f20b6 / designer spec DESIGN_AUDIT.md L2.5
+ *
+ * Pre-AI-714 the `<= 767px` rule below hid the 255-px category rail
+ * entirely on mobile, leaving users with only free-text search.
+ * High-priority regression (designer "every category accessible
+ * within 2 taps at mobile 390 px" done-when).
+ *
+ * Fix (designer option C — bottom-sheet): keep the desktop rail
+ * shape unchanged. On mobile, the rail is replaced by a Filter
+ * trigger button next to the search input that opens a bottom-
+ * sheet listing all 17 categories. Trigger shows the current
+ * filter as its label. Bottom-sheet uses the same
+ * `filterCategorySubmit` handler so the active-state binding
+ * stays in sync between surfaces. The AI-685 / AI-695 bottom-
+ * sheet primitive is not yet shipped — this implementation is
+ * a minimal inline bottom-sheet sufficient for this surface; can
+ * be refactored to the primitive when AI-685/AI-695 land.
+ *
+ * Token-scoping note (SOUL #108): every var() carries a literal
+ * fallback. Sheet renders inside the layouts-dialog overlay
+ * which sits in the live-edit page chrome where :root ESE
+ * tokens resolve.
+ * ─────────────────────────────────────────────────────────────── */
+
+/* Trigger button — hidden by default; revealed only on mobile via
+ * the @media block below. */
+.mw-le-layouts-mobile-filter-trigger {
+    display: none;
+}
+
+.mw-le-layouts-mobile-filter-sheet {
+    display: none;
+}
+
+@media (max-width: 767px) {
+    .mw-le-layouts-dialog-col:first-child {
+        display: none;
+    }
+    .mw-le-layouts-dialog-col:last-child {
+        position: static;
+    }
+
+    /* AI-714 mobile filter trigger — full-width affordance below
+     * the search input. Shows current filter as label; chevron
+     * down hints at bottom-sheet expansion. 44-px hit area per
+     * WCAG 2.5.5. */
+    .mw-le-layouts-mobile-filter-trigger {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-xs, 6px);
+        width: 100%;
+        min-height: 44px;
+        padding: var(--space-sm, 8px) var(--space-md, 13px);
+        margin-top: var(--space-sm, 8px);
+        background-color: var(--ese-surface-muted, rgba(0, 0, 0, 0.04));
+        color: var(--ese-text, #111827);
+        border: 1px solid var(--ese-border, rgba(0, 0, 0, 0.08));
+        border-radius: var(--radius-sm, 4px);
+        font-size: var(--font-control, 13px);
+        cursor: pointer;
+        transition: background-color var(--t-fast, 120ms) var(--ease, cubic-bezier(0.2, 0.8, 0.2, 1));
+    }
+    .mw-le-layouts-mobile-filter-trigger:hover,
+    .mw-le-layouts-mobile-filter-trigger:focus-visible {
+        background-color: var(--ese-surface-hover, rgba(0, 0, 0, 0.08));
+    }
+    .mw-le-layouts-mobile-filter-trigger:focus-visible {
+        outline: 2px solid var(--ese-accent, #182433);
+        outline-offset: 2px;
+    }
+    .mw-le-layouts-mobile-filter-trigger-label {
+        flex: 1;
+        text-align: start;
+        font-weight: 500;
+    }
+    .mw-le-layouts-mobile-filter-trigger-chevron {
+        transition: transform var(--t-fast, 120ms) var(--ease, cubic-bezier(0.2, 0.8, 0.2, 1));
+    }
+    .mw-le-layouts-mobile-filter-trigger[aria-expanded="true"] .mw-le-layouts-mobile-filter-trigger-chevron {
+        transform: rotate(180deg);
+    }
+
+    /* AI-714 bottom-sheet — full-viewport overlay that slides up
+     * a panel from the bottom edge containing the category list.
+     * Backdrop dims the canvas; clicking it dismisses without
+     * selection. */
+    .mw-le-layouts-mobile-filter-sheet {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 1100;
+    }
+    .mw-le-layouts-mobile-filter-sheet__backdrop {
+        position: absolute;
+        inset: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        animation: mw-le-layouts-mobile-filter-sheet-fade var(--t-fast, 120ms) var(--ease, cubic-bezier(0.2, 0.8, 0.2, 1));
+    }
+    .mw-le-layouts-mobile-filter-sheet__panel {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        max-height: 80vh;
+        overflow-y: auto;
+        background-color: var(--ese-surface, #ffffff);
+        border-top-left-radius: var(--radius-md, 8px);
+        border-top-right-radius: var(--radius-md, 8px);
+        padding-bottom: env(safe-area-inset-bottom, 0);
+        animation: mw-le-layouts-mobile-filter-sheet-slide var(--t-fast, 120ms) var(--ease, cubic-bezier(0.2, 0.8, 0.2, 1));
+    }
+    .mw-le-layouts-mobile-filter-sheet__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: var(--space-md, 13px);
+        border-bottom: 1px solid var(--ese-border, rgba(0, 0, 0, 0.08));
+        position: sticky;
+        top: 0;
+        background-color: var(--ese-surface, #ffffff);
+    }
+    .mw-le-layouts-mobile-filter-sheet__title {
+        margin: 0;
+        font-size: var(--font-section, 15px);
+        font-weight: 600;
+        color: var(--ese-text, #111827);
+    }
+    .mw-le-layouts-mobile-filter-sheet__close {
+        background: transparent;
+        border: none;
+        padding: var(--space-xs, 6px);
+        min-width: 44px;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--ese-text-muted, #6b7280);
+        cursor: pointer;
+        border-radius: var(--radius-sm, 4px);
+    }
+    .mw-le-layouts-mobile-filter-sheet__close:hover,
+    .mw-le-layouts-mobile-filter-sheet__close:focus-visible {
+        background-color: var(--ese-surface-hover, rgba(0, 0, 0, 0.04));
+        color: var(--ese-text, #111827);
+    }
+    .mw-le-layouts-mobile-filter-sheet__close:focus-visible {
+        outline: 2px solid var(--ese-accent, #182433);
+        outline-offset: 2px;
+    }
+    .mw-le-layouts-mobile-filter-sheet__list {
+        list-style: none;
+        margin: 0;
+        padding: var(--space-sm, 8px) 0;
+    }
+    .mw-le-layouts-mobile-filter-sheet__list li {
+        padding: var(--space-sm, 8px) var(--space-md, 13px);
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        font-size: var(--font-control, 13px);
+        color: var(--ese-text, #111827);
+    }
+    .mw-le-layouts-mobile-filter-sheet__list li:hover,
+    .mw-le-layouts-mobile-filter-sheet__list li:focus-visible {
+        background-color: var(--ese-surface-hover, rgba(0, 0, 0, 0.04));
+    }
+    .mw-le-layouts-mobile-filter-sheet__list li.active {
+        background-color: var(--ese-accent-soft, rgba(24, 36, 51, 0.1));
+        color: var(--ese-accent, #182433);
+        font-weight: 600;
+    }
+    .mw-le-layouts-mobile-filter-sheet__list li.active::before {
+        content: '✓';
+        margin-inline-end: var(--space-sm, 8px);
+        font-weight: 700;
+    }
+    .mw-le-layouts-mobile-filter-sheet__list li:focus-visible {
+        outline: 2px solid var(--ese-accent, #182433);
+        outline-offset: -2px;
+    }
+}
+
+@keyframes mw-le-layouts-mobile-filter-sheet-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes mw-le-layouts-mobile-filter-sheet-slide {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mw-le-layouts-mobile-filter-sheet__backdrop,
+    .mw-le-layouts-mobile-filter-sheet__panel {
+        animation: none;
+    }
+    .mw-le-layouts-mobile-filter-trigger-chevron {
+        transition: none;
+    }
+}
+
+/* AI-714 — leave the original mobile-rail-hide rule below intact;
+ * the trigger + sheet above replace its function on mobile. */
+@media (max-width: 767px) {
+    .mw-le-layouts-dialog-col:first-child {
+        display: none;
+    }
+    .mw-le-layouts-dialog-col:last-child {
+        position: static;
+    }
+
+    /*
+     * AI-180 (cycle-154 2026-05-10): the cycle-N hide rule below
+     * stripped the right-rail (Insert layout / Template settings /
+     * Design / Quick AI edit / Advanced) from mobile entirely —
+     * UX-audit P2 finding "Secondary toolbar actions have 0×0px
+     * buttons (P2)". The rail is `position: absolute` (overlays the
+     * canvas, doesn't displace it) and after AI-179 the buttons are
+     * 44×44 — there's no longer a layout reason to hide it on mobile.
+     * Show the rail on mobile so users can tap Insert layout / Design
+     * etc. on touch devices.
+     */
+    /*
+    .mw-live-edit-right-sidebar-wrapper {
+        display: none !important    ;
+    }
+    */
+    #live-edit-frame-holder {
+        right: 0;
+    }
+}
+
+.mw-le-layouts-dialog .modules-list-block {
+    overflow: auto;
+}
+
+.mw-le-layouts-dialog-col {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    flex-direction: column;
+}
+
+.mw-le-layouts-dialog .modules-list-block-item:hover,
+.modules-list-block-item-masonry:hover {
+    transform: scale(1.02);
+
+    box-shadow: rgba(0, 0, 0, 0.1) 0px 20px 25px -5px,
+        rgba(0, 0, 0, 0.04) 0px 10px 10px -5px;
+}
+
+.mw-le-layouts-dialog .modules-list-block-item-description {
+    display: none;
+}
+
+.mw-le-layouts-dialog .modules-list-block-item-is-locked-true:before {
+    border: 3px solid #c82c2c;
+}
+
+.mw-le-layouts-dialog
+    .modules-list-block-item:hover
+    .modules-list-block-item-title,
+.modules-list-block-item-masonry-title {
+    transform: scale(1.4);
+}
+
+.mw-le-layouts-dialog .modules-list-block-item-title,
+.modules-list-block-item-masonry-title {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    padding: 3px 10px;
+    background-color: white;
+    font-size: 10px;
+    transition: 0.3s;
+    transform-origin: right bottom;
+    color: black;
+}
+
+.modules-list-block-masonry {
+    overflow-y: scroll;
+}
+
+/* task-2026-05-27-de93c9 / AI-1166: color #737373 → var(--ese-text) for WCAG 4.5:1 contrast */
+.mw-le-layouts-dialog .modules-list-search-block .modules-list-search-field {
+    height: var(--layouts-dialog-toolbar-height);
+    background-color: var(--tblr-body-bg2, #f4f6fa);
+    border-color: var(--tblr-body-bg2, #f4f6fa);
+    padding: 0 20px 0 55px;
+    font-size: 14px;
+    color: var(--ese-text, #111827);
+}
+.mw-le-layouts-dialog .modules-list-search-block .modules-list-search-field::placeholder {
+    color: var(--ese-text-muted, #6b7280);
+}
+
+.mw-le-layouts-dialog .modules-list-block-item,
+.modules-list-block-item-masonry {
+    transition: 0.22s;
+    display: block;
+    position: relative;
+    cursor: pointer;
+    box-shadow: rgba(60, 64, 67, 0.3) 0px 1px 2px 0px,
+        rgba(60, 64, 67, 0.15) 0px 2px 6px 2px;
+}
+
+.mw-le-layouts-dialog .modules-list-block-item-picture {
+    width: 100%;
+    height: 100%;
+    background-color: white;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: cover;
+}
+
+.mw-le-layouts-dialog .modules-list-block:after {
+    content: "";
+    flex: auto;
+}
+
+.mw-le-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+/* task-2026-05-28-2f5a6c / AI-1145 — insert-layout dialog spacing
+   standardised to 16px (was 30px) so the list + full views align with
+   the masonry view (also 16px in ListLayouts.vue MasonryWall props).
+   16px = Tailwind gap-4 = the design-system standard gutter. */
+.mw-le-layouts-dialog .modules-list-block {
+    padding: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    justify-content: center;
+    max-height: 100%;
+    overflow: auto;
+}
+
+.mw-le-layouts-dialog .modules-list-categories li {
+    display: block;
+    cursor: pointer;
+    text-transform: capitalize;
+    padding: 10px 15px;
+}
+
+.mw-le-layouts-dialog .modules-list-categories {
+    font-size: 14px;
+    color: #232323;
+    list-style: none;
+    flex: 1;
+
+    padding-inline-start: 20px;
+}
+
+.mw-le-layouts-dialog .modules-list-search-block {
+    height: var(--layouts-dialog-toolbar-height);
+    background-color: #f4f4f4;
+}
+
+.modules-list-block-item-locked-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    border-radius: 3px;
+    color: white;
+    background-color: #c82c2c;
+    min-width: 35px;
+    text-align: center;
+    font-size: 10px;
+    padding: 3px 6px;
+    z-index: 3;
+}
+
+.modules-list-categories {
+    list-style: none;
+    overflow: auto;
+    color: #000000;
+}
+
+html.dark .mw-le-layouts-dialog .modules-list-categories,
+html.dark .modules-list-categories,
+html.dark .modules-list-categories li,
+html.dark .mw-le-layouts-dialog-categories-title {
+    color: #e5e7eb;
+}
+
+.mw-le-layouts-dialog-categories-title:after {
+    height: 2px;
+    background-color: #000000;
+    flex: 1;
+    content: "";
+    width: 100%;
+}
+
+.mw-le-layouts-dialog-categories-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    color: #000000;
+    line-height: 50px;
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 20px 29px;
+}
+
+/* /layouts dialog */
+
+/* modules dialog */
+
+.mw-le-modules-dialog {
+    --layouts-dialog-height: calc(100vh - 50px);
+    --layouts-dialog-toolbar-height: 60px;
+}
+
+.mw-le-modules-dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    max-width: calc(100vw - 60px);
+    height: calc(100vh - 60px);
+
+    width: 500px;
+    max-width: 95%;
+    max-height: 400px;
+
+    z-index: 1000;
+
+    @apply bg-white p-4 text-gray-900 shadow-lg dark:bg-gray-700 dark:text-white;
+}
+
+.mw-le-modules-dialog.active {
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.mw-le-modules-dialog .modules-list-defaultModules {
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+}
+
+.mw-le-modules-dialog .modules-list-block-item {
+    position: relative;
+    width: 120px;
+    height: 90px;
+    border-radius: 5px;
+    background-color: #f5f5f5;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+    align-items: center;
+    cursor: pointer;
+    font-size: 14px;
+    transition: 0.3s;
+}
+
+.mw-le-modules-dialog .modules-list-block-item:hover {
+    background-color: #fff;
+    transform: scale(1.05);
+}
+
+.mw-le-modules-dialog .modules-list-block-item-title,
+.modules-list-block-item-masonry-title {
+    white-space: nowrap;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+    max-width: 100%;
+    padding: 0 10px;
+}
+
+.mw-le-modules-dialog .modules-list-block-item-description {
+    display: none;
+}
+
+.mw-le-modules-dialog
+    .modules-list-block-category-section
+    .modules-list-block-category-section-title {
+    width: 100%;
+    min-width: 100%;
+    text-align: center;
+    padding: 50px 0 10px;
+}
+
+.mw-le-modules-dialog
+    .modules-list-block-category-section
+    .modules-list-block-category-section-title
+    h5 {
+    display: inline-block;
+    color: white;
+    border-radius: 50px;
+    background-color: #464646;
+    font-weight: 300;
+    white-space: nowrap;
+    padding: 12px 30px;
+    text-transform: uppercase;
+}
+
+.mw-le-modules-dialog .modules-list-block {
+    max-height: 100%;
+    overflow: auto;
+    padding: 8px;
+    margin: 8px;
+}
+
+.mw-le-modules-dialog .modules-list-block-category-section {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    position: relative;
+    /*gap: 10px;*/
+}
+
+.mw-le-modules-dialog .modules-list-block-item-picture {
+    min-width: 20px;
+    min-height: 20px;
+    width: 20px;
+    height: 20px;
+    background-color: transparent;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    margin-inline-end: 10px;
+}
+
+.mw-le-modules-dialog .modules-list-search-block .modules-list-search-field {
+    height: var(--layouts-dialog-toolbar-height);
+    background-color: var(--tblr-body-bg2, #f4f6fa);
+    border-color: var(--tblr-body-bg2, #f4f6fa);
+    padding: 0 20px 0 55px;
+    font-size: 14px;
+    color: white;
+}
+
+.mw-modules-list-search-block {
+    height: var(--layouts-dialog-toolbar-height);
+    background-color: var(--tblr-body-bg2, #f4f6fa);
+    border-color: var(--tblr-body-bg2, #f4f6fa);
+}
+
+.modules-list-search-block svg.icon {
+    stroke-width: 3px;
+}
+
+.mw-le-dialog-close.active {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.mw-le-dialog-close {
+    z-index: 1001;
+    opacity: 0;
+    transform: scale(0);
+    transition: 0.2s;
+    position: fixed;
+    top: 40px;
+    right: 70px;
+    width: 25px;
+    height: 25px;
+    cursor: pointer;
+    background-color: transparent;
+    background-repeat: no-repeat;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ctitle%3Eclose%3C/title%3E%3Cpath d='M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z' /%3E%3C/svg%3E");
+    background-size: contain;
+    border-radius: 40px;
+    /*box-shadow: rgba(0, 0, 0, 0.25) 0px 54px 55px, rgba(0, 0, 0, 0.12) 0px -12px 30px, rgba(0, 0, 0, 0.12) 0px 4px 6px, rgba(0, 0, 0, 0.17) 0px 12px 13px, rgba(0, 0, 0, 0.09) 0px -3px 5px;*/
+}
+
+.mw-le-modules-dialog .modules-list-block-item-is-locked-true:before {
+    display: none;
+}
+
+/* /modules dialog */
+
+/* gui editor */
+
+:root {
+    /* ESE / Live Edit accent = ink #182433 (the design-language active/selected colour).
+       Defined here in the frontend bundle so it resolves for ESE controls, teleported
+       popovers and canvas-iframe styles instead of falling back to the old brand blue. */
+    --ese-accent: #182433;
+    --ese-accent-soft: rgba(24, 36, 51, 0.1);
+    --sidebar-start-size: 250px;
+    --sidebar-end-size: 350px;
+    --sidebar-end-size-min: 300px;
+    --sidebar-end-size-max: 700px;
+}
+
+/* task-2026-09-06-darkaudit — SYSTEMIC dark-mode fix. The light-only :root
+   block above re-declares --ese-accent / --ese-accent-soft, and because this
+   frontend bundle loads AFTER the filament theme it SHADOWS the theme's global
+   .dark flip of these two tokens (element-style-editor.css:375-376). Result:
+   --ese-accent stayed #182433 (dark ink) in dark mode everywhere it's used for
+   a colour/fill/border — active rail icon+text, layout/module handles, tabs,
+   ~57 chrome sites — i.e. dark-on-dark. Re-flip the two shadowed tokens in dark
+   with an html.dark-anchored selector (specificity 0,1,1) so it deterministically
+   wins over both :root and .dark (0,1,0) regardless of load order. Mirrors the
+   theme's own dark values; also repairs --ese-accent INSIDE the ESE (the shadow
+   was silently breaking it there too). Canvas iframe / public site carry no
+   html.dark, so the light :root above still governs them. */
+html.dark, html.dark :root, .dark, .theme-dark, [data-theme="dark"] {
+    --ese-accent: #e5e7eb;
+    --ese-accent-soft: rgba(229, 231, 235, 0.14);
+}
+
+#css-editor-template {
+    position: fixed;
+    top: var(--toolbar-height);
+    bottom: 0;
+    right: calc(var(--sidebar-end-size) + 10px);
+    width: var(--sidebar-end-size);
+    min-width: var(--sidebar-end-size-min);
+    max-width: var(--sidebar-end-size-max);
+    z-index: 5;
+    transition: var(--toolbar-height-animation-speed);
+    overflow: auto;
+}
+
+#css-editor-template.active + #live-edit-frame-holder {
+    right: var(--sidebar-end-size);
+}
+
+#css-editor-template.active {
+    right: 0;
+}
+
+#general-theme-settings {
+    position: fixed;
+    top: var(--toolbar-height);
+    bottom: 0;
+    right: calc(-1 * var(--sidebar-end-size));
+    width: calc(var(--sidebar-end-size));
+    transition: var(--toolbar-height-animation-speed);
+    overflow: auto;
+    background-color: var(--tblr-bg-surface, #ffffff);
+    border-left: var(--tblr-body-color, #182433);
+    padding: 11px;
+    z-index: 1;
+
+    min-width: var(--sidebar-end-size-min);
+    max-width: var(--sidebar-end-size-max);
+}
+
+#general-theme-settings.active + #live-edit-frame-holder {
+    right: 330px;
+}
+
+#general-theme-settings.active {
+    right: 0;
+}
+
+/* task-2026-09-24 — when the right AI / quick-edit panel is open, shrink the
+   canvas holder so the whole page (and its horizontal scrollbar) stays visible
+   to the LEFT of the 350px panel instead of being hidden underneath it. The
+   panel is the fixed 350px box #mw-live-edit-quickEditComponent-box.active; we
+   scope to it via :has() so this never fires for centered modals or other
+   chrome (the reason the generic .live-edit-gui-editor-opened rule was disabled
+   in RightSidebar.vue). Desktop-only, so the mobile full-screen overlay
+   (#live-edit-frame-holder { right: 0 } below) is left untouched. */
+@media (min-width: 768px) {
+    body:has(#mw-live-edit-quickEditComponent-box.active) #live-edit-frame-holder {
+        right: var(--sidebar-end-size);
+    }
+
+    /* task-2026-09-28 — same shrink for the docked GUI editor panel (Style /
+       Layout / Template / element-style-editor = #mw-live-edit-gui-editor-box).
+       That panel opens --sidebar-end-size wide at the far right with the fixed
+       60px icon rail immediately to its LEFT, so the holder must clear
+       rail(60) + panel or the canvas keeps its full width and its vertical
+       scrollbar hides underneath the panel (no way to scroll the canvas while
+       the sidebar is open). Scoped via :has(...active) so it never fires for
+       the closed dock or centered modals. */
+    body:has(#mw-live-edit-gui-editor-box.active) #live-edit-frame-holder {
+        right: calc(var(--sidebar-end-size) + 60px);
+    }
+}
+
+@media (max-width: 767px) {
+    :root {
+        --sidebar-end-size: 100vw;
+        --sidebar-end-size-min: 100vw;
+        --sidebar-end-size-max: 100vw;
+    }
+
+    #live-edit-frame-holder {
+        right: 0;
+    }
+
+    html.live-edit-gui-editor-opened #live_edit_side_holder,
+    html.mw-live-edit-sidebar-start.live-edit-gui-editor-opened #live_edit_side_holder {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    #css-editor-template,
+    #general-theme-settings {
+        left: 0;
+        width: 100vw;
+        min-width: 0;
+        max-width: none;
+        border-left: 0;
+        right: 0 !important;
+        transform: none !important;
+    }
+
+    html .mw-control-box-right {
+        top: var(--toolbar-height);
+        bottom: 0;
+        left: 0;
+        right: 0 !important;
+        width: 100vw;
+        height: auto;
+        max-width: 100vw;
+        max-height: calc(100dvh - var(--toolbar-height));
+        transform: none !important;
+    }
+
+    html .mw-control-box-right .mw-control-box-content {
+        max-height: calc(100dvh - var(--toolbar-height) - 80px);
+        overflow: auto;
+    }
+
+    #css-editor-template,
+    #general-theme-settings,
+    html .mw-control-box-right {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+    }
+
+    #css-editor-template.active,
+    #general-theme-settings.active,
+    html .mw-control-box-right.active {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        right: 0 !important;
+        transform: none !important;
+    }
+
+    #css-editor-template.active + #live-edit-frame-holder,
+    #general-theme-settings.active + #live-edit-frame-holder {
+        right: 0;
+    }
+}
+
+/* /gui editor */
+
+.mw-modules-list-block-item:hover {
+    background-color: var(--tblr-body-bg, #f4f6fa);
+}
+#mw-live-edit-search-content .mw-spinner {
+    z-index: 10;
+    right: 0;
+    left: auto;
+
+    pointer-events: none;
+}
+
+html .mw-control-box-left,
+html .mw-control-box-right {
+    top: var(--toolbar-height);
+    box-shadow: 0px 8px 10px rgba(0, 0, 0, 0.2);
+}
+
+html .mw-control-box-left .mw-control-box-content,
+html .mw-control-box-right .mw-control-box-content {
+    max-height: calc(100% - 140px);
+    overflow: auto;
+}
+
+/* task-2026-09-06-darkaudit — exclude the RIGHT admin overlay from the LEFT
+   Layers canvas-shift (it reuses mw-live-edit-sidebar-start for label styling).
+   Without this the canvas was pushed 250px right on admin-open, exposing a
+   black gap on the left. */
+html.mw-live-edit-sidebar-start:not(.mw-live-edit-admin-open) #live-edit-frame-holder {
+    left: var(--sidebar-start-size);
+}
+
+#mw-live-edit-domtree-box,
+aside.fi-sidebar {
+    width: var(--sidebar-start-size);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+ * AI-715 — Add Layouts desktop polish: search promote + top
+ * alignment + selected-category echo
+ * task-2026-05-16-847083 / designer spec DESIGN_AUDIT.md (Drunk-
+ * Designer 5-heuristic protocol)
+ *
+ * Three independent micro-fixes per the failed heuristics:
+ *
+ *   1. Eye-flow test FAIL — search rendered as faint placeholder
+ *      only. Fix: promote `.modules-list-search-field` to the
+ *      MwField visual contract (--ese-surface-muted bg, --border-xs
+ *      solid --ese-border, --radius-sm, 44px height). Matches the
+ *      mobile treatment shipped at AI-714.
+ *
+ *   2. Edge-alignment scan FAIL — left rail starts at y≈17px,
+ *      right pane search at y≈47px (30px misalignment). Fix:
+ *      both columns' first content row aligns to var(--space-md).
+ *      Override the .py-5 on `.modules-list-categories` (Bootstrap
+ *      utility = 1.25rem ≈ 20px) and lock matching padding-top on
+ *      the right pane's wrapper.
+ *
+ *   3. Section continuity FAIL — clicking a category leaves no
+ *      visible "Showing: X" echo in the right pane. Fix: new
+ *      `.mw-le-layouts-result-header` shows `{Category} · {N}
+ *      layouts` directly above the search input + active left-
+ *      rail item gets --ese-accent-soft bg + --ese-accent text
+ *      (matches MwToolButton toggle accent contract).
+ *
+ * Token-scoping note (SOUL #108): every var() carries a literal
+ * fallback. All 3 fixes scoped to the layouts dialog wrappers so
+ * other admin surfaces are untouched.
+ * ─────────────────────────────────────────────────────────────── */
+
+/* AI-715 §1: promote search to MwField visual contract. */
+.mw-le-layouts-dialog .modules-list-search-field,
+.modules-list-search-field {
+    background-color: var(--ese-surface-muted, rgba(0, 0, 0, 0.04));
+    color: var(--ese-text, #111827);
+    border: 1px solid var(--ese-border, rgba(0, 0, 0, 0.08));
+    border-radius: var(--radius-sm, 4px);
+    min-height: 44px;
+    padding-inline: var(--space-md, 13px);
+    padding-block: var(--space-sm, 8px);
+    font-size: var(--font-control, 13px);
+}
+.mw-le-layouts-dialog .modules-list-search-field:focus,
+.modules-list-search-field:focus {
+    background-color: var(--ese-surface, #ffffff);
+    border-color: var(--ese-accent, #182433);
+    outline: none;
+    box-shadow: 0 0 0 3px var(--ese-accent-soft, rgba(24, 36, 51, 0.1));
+}
+.mw-le-layouts-dialog .modules-list-search-field::placeholder,
+.modules-list-search-field::placeholder {
+    color: var(--ese-text-muted, #6b7280);
+}
+
+/* AI-715 §2: align both columns' first content row to
+   var(--space-md). Left rail `<ul class="modules-list-categories
+   py-5">` carries py-5 (Bootstrap 1.25rem) — neutralise and apply
+   our token. Right pane wrapper gets matching padding-top. */
+.mw-le-layouts-dialog-col:first-child .modules-list-categories {
+    padding-top: var(--space-md, 13px) !important;
+    padding-bottom: var(--space-md, 13px) !important;
+}
+.mw-le-layouts-dialog-col:last-child > div:first-child {
+    padding-top: var(--space-md, 13px);
+}
+
+/* AI-715 §3a: active left-rail category gets accent-soft bg +
+   accent text. Targets both shapes the template emits — `<li>`
+   for All-categories and inner `<a>` for the v-for'd categories. */
+.mw-le-layouts-dialog-col:first-child .modules-list-categories li.active,
+.mw-le-layouts-dialog-col:first-child .modules-list-categories li a.active {
+    background-color: var(--ese-accent-soft, rgba(24, 36, 51, 0.1)) !important;
+    color: var(--ese-accent, #182433) !important;
+    border-radius: var(--radius-sm, 4px);
+    font-weight: 600;
+}
+.mw-le-layouts-dialog-col:first-child .modules-list-categories li.active {
+    padding-inline: var(--space-md, 13px);
+}
+
+/* AI-715 §3b: section-continuity echo header in right pane.
+   `{Category} · {N} layouts` rendered above the search input so
+   users can see at-a-glance which category they have selected and
+   how many layouts match. */
+.mw-le-layouts-result-header {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-xs, 6px);
+    padding-inline: var(--space-md, 13px);
+    padding-block-end: var(--space-sm, 8px);
+    font-size: var(--font-section, 15px);
+    color: var(--ese-text, #111827);
+}
+.mw-le-layouts-result-header__name {
+    font-weight: 600;
+}
+.mw-le-layouts-result-header__separator {
+    color: var(--ese-text-muted, #6b7280);
+    user-select: none;
+}
+.mw-le-layouts-result-header__count {
+    font-size: var(--font-label, 11px);
+    color: var(--ese-text-muted, #6b7280);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: var(--letter-label, 0.01em);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+ * AI-716 — Add Layouts left-rail category hierarchy
+ * task-2026-05-16-c4893b / designer spec DESIGN_AUDIT.md
+ *
+ * 17 flat categories grouped into 3 visual tiers:
+ *   1. All categories (top, no header) — default active.
+ *   2. Featured — designer-curated 6 high-use categories.
+ *   3. All categories (alphabetised remainder) — header label.
+ *
+ * Group headers (`<li role="presentation" aria-hidden="true">`)
+ * render in --font-label / --weight-label / --letter-label
+ * metadata typography, uppercase, --ese-text-muted colour. They
+ * sit inside the same <ul role="tablist"> as the tabs so screen
+ * readers announce all tabs linearly without group-header noise
+ * (aria-hidden + role="presentation" makes the header invisible
+ * to AT). `var(--space-sm)` spacing above each group header
+ * separates the groups visually without injecting a `<hr>`.
+ *
+ * The same grouping applies to BOTH the desktop rail AND the
+ * AI-714 mobile bottom-sheet — same selector targets both
+ * because both surfaces share `.modules-list-categories` and
+ * `.mw-le-layouts-categories-group-header`.
+ *
+ * Token-scoping note (SOUL #108): every var() carries a literal
+ * fallback. Scoped to the categories list so other admin
+ * surfaces are untouched.
+ * ─────────────────────────────────────────────────────────────── */
+
+.modules-list-categories .mw-le-layouts-categories-group-header {
+    font-size: var(--font-label, 11px);
+    font-weight: var(--weight-label, 500);
+    letter-spacing: var(--letter-label, 0.01em);
+    color: var(--ese-text-muted, #6b7280);
+    text-transform: uppercase;
+    padding-inline: var(--space-md, 13px);
+    padding-block: var(--space-sm, 8px) var(--space-xs, 6px);
+    margin-block-start: var(--space-sm, 8px);
+    cursor: default;
+    list-style: none;
+    user-select: none;
+    /* Group headers are decorative — no hover / focus / active
+       affordance. Make sure they don't pick up any tab styling
+       inherited from `.modules-list-categories li`. */
+    background: transparent;
+    pointer-events: none;
+}
+/* First group header (Featured) sits right after the All-
+   categories tab — no top margin so the gap reads as one
+   --space-sm separator, not double. */
+.modules-list-categories > li:nth-child(2).mw-le-layouts-categories-group-header {
+    margin-block-start: 0;
+}
+
+/* task-2026-05-28-10c8ab / AI-1185 — WCAG 2.5.5 touch targets */
+.mw-le-dialog-close-btn {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.mw-le-layouts-dialog .modules-list-categories li[role="tab"] {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+}
+
+/* task-2026-06-02-mobile01 — iOS auto-zoom prevention.
+ * iOS Safari zooms any <input> / <select> / <textarea> whose
+ * computed font-size is below 16px. The Insert Layout search
+ * field uses var(--font-control, 13px) on desktop — correct for
+ * the compact ESE UI but too small for mobile. Override to 16px
+ * on touch devices so the viewport stays put on focus.
+ * Combined with (pointer: coarse) so the override only fires
+ * on actual touch/stylus devices, not desktop browsers that
+ * happen to be 767px wide. */
+@media (max-width: 767px), (pointer: coarse) {
+    .mw-le-layouts-dialog .modules-list-search-field,
+    .modules-list-search-field {
+        font-size: 16px;
+    }
+    /* Bottom-sheet list font-size: li elements don't trigger iOS
+       zoom but 13px is hard to read at arm's length on mobile.
+       Bump to 15px (readable without ballooning the panel). */
+    .mw-le-layouts-mobile-filter-sheet__list li {
+        font-size: 15px;
+    }
+}
+
+/* ============================================================================
+   task-2026-06-13-letoolbarstyle — Live-edit toolbar visual match to the
+   released v2.0.20 toolbar (demo.microweber.org). CSS-ONLY: the AI-698b button
+   layout (3-icon device switch, ⋯ Tools popover, ☰ hamburger) is preserved;
+   only colours / radii / sizes are aligned to the old design. Measured demo
+   targets: buttons 36px tall, 4px radius, 14px/400 text; secondary buttons
+   gray #f0f0f0; +ADD soft-blue #e1edf8 with a blue glyph; SAVE flat dark
+   #182433 square (NOT the navy 999px pill); device switch grouped in a gray
+   #f0f0f0 / 5px-radius pill.
+   ============================================================================ */
+
+/* All toolbar buttons — old sizing & shape (4px corners, 36px, regular weight) */
+#toolbar .btn.live-edit-toolbar-buttons {
+    height: 36px;
+    min-height: 36px;
+    border-radius: 4px !important;
+    padding: 7px 16px;
+    font-size: 14px;
+    font-weight: 400 !important;
+    display: inline-flex;
+    align-items: center;
+    box-shadow: none !important;
+}
+
+/* Icon-only toolbar buttons (⋮ Tools, hamburger, etc. — class is btn-icon, not
+   btn) — same 36px / 4px / gray treatment, but only OUTSIDE the segmented group
+   (those are handled below). */
+#toolbar .btn-icon.live-edit-toolbar-buttons:not(.mw-segmented__cell) {
+    height: 36px;
+    min-height: 36px;
+    min-width: 36px;
+    border-radius: 4px !important;
+    background-color: #f0f0f0;
+    border: 1px solid #f0f0f0;
+    color: #182433;
+    box-shadow: none !important;
+}
+#toolbar .btn-icon.live-edit-toolbar-buttons:not(.mw-segmented__cell):hover {
+    background-color: #e6e6e6;
+}
+
+/* task-2026-09-17 — device/resolution dropdown trigger sizing. It inherited the
+   36px / 4px-radius icon-button size, so it rendered SMALLER and sat lower than
+   the Tools (.mw-tool-btn) button right beside it (44px tall, 8px radius). Match
+   the Tools button so the two adjacent gray toolbar buttons are consistent. */
+#toolbar .mw-device-switch__trigger.btn-icon.live-edit-toolbar-buttons {
+    height: 44px;
+    min-height: 44px;
+    border-radius: 8px !important;
+    padding: 0 10px;
+    background-color: #f1f3f5;
+    border-color: #f1f3f5;
+}
+#toolbar .mw-device-switch__trigger.btn-icon.live-edit-toolbar-buttons:hover {
+    background-color: #e6e6e6;
+}
+
+/* Secondary buttons (undo, redo, VIEW/PREVIEW) — flat gray pills */
+#toolbar .btn.live-edit-toolbar-buttons:not(.btn-dark):not(.mw-save-button):not([aria-label="Add content"]) {
+    background-color: #f0f0f0;
+    color: #182433;
+    border: 1px solid #f0f0f0;
+}
+#toolbar .btn.live-edit-toolbar-buttons:not(.btn-dark):not(.mw-save-button):not([aria-label="Add content"]):hover {
+    background-color: #e6e6e6;
+    color: #182433;
+}
+
+/* + ADD — the primary insert CTA. Ink #182433 (the "+Add X = navy" decision) with a white
+   glyph, matching SAVE and the admin's active/primary chrome. Was an off-palette soft-blue
+   pill (#e1edf8) with a blue glyph (#2f74d0). */
+#toolbar button[aria-label="Add content"].live-edit-toolbar-buttons {
+    background-color: #182433 !important;
+    color: #ffffff !important;
+    border: 1px solid #182433 !important;
+}
+#toolbar button[aria-label="Add content"].live-edit-toolbar-buttons:hover {
+    background-color: #243347 !important;
+    border-color: #243347 !important;
+}
+#toolbar button[aria-label="Add content"].live-edit-toolbar-buttons svg {
+    color: #ffffff;
+}
+
+/* SAVE — flat dark slate square, not the navy pill; normal weight, caps via CSS */
+#toolbar .btn.live-edit-toolbar-buttons.mw-save-button,
+#toolbar .btn.live-edit-toolbar-buttons.btn-dark {
+    background-color: #182433 !important;
+    color: #ffffff !important;
+    border: 1px solid #1f2e41 !important;
+    border-radius: 4px !important;
+    font-weight: 400 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+#toolbar .btn.live-edit-toolbar-buttons.mw-save-button:hover,
+#toolbar .btn.live-edit-toolbar-buttons.btn-dark:hover {
+    background-color: #21364d !important;
+}
+
+/* Device / resolution switch — group the icons into one gray pill (old look),
+   without changing the AI-698b markup. The MwSegmented component (.mw-segmented)
+   styles itself, so override with full specificity + !important. */
+#toolbar .mw-live-edit-resolutions-wrapper.mw-segmented {
+    background-color: #f0f0f0 !important;
+    border-radius: 5px !important;
+    padding: 4px !important;
+    gap: 2px !important;
+}
+#toolbar .mw-live-edit-resolutions-wrapper .mw-segmented__cell.live-edit-toolbar-buttons {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    border-radius: 4px !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    box-shadow: none !important;
+    color: #182433;
+}
+#toolbar .mw-live-edit-resolutions-wrapper .mw-segmented__cell.live-edit-toolbar-buttons.is-active,
+#toolbar .mw-live-edit-resolutions-wrapper .mw-segmented__cell.live-edit-resolution-active {
+    background-color: #ffffff !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12) !important;
+    color: #182433;
+}
+
+/* Page chip ("Home ▾") — gray pill matching the old page dropdown */
+#toolbar .mw-page-chip {
+    background-color: #f0f0f0 !important;
+    border: 1px solid #f0f0f0 !important;
+    border-radius: 4px !important;
+    color: #182433 !important;
+    min-height: 36px;
+    padding: 7px 16px;
+    font-weight: 400;
+    box-shadow: none !important;
+}
+#toolbar .mw-page-chip:hover {
+    background-color: #e6e6e6 !important;
+}
+
+/* task-2026-09-06-ledark — DEFECT 2: page-chip trigger ("Home ▾") is a
+   WHITE pill in dark mode (the light #f0f0f0/#182433 rule above wins with
+   its #toolbar id-specificity). PageChip.vue is Vue-scoped so its own
+   .dark rules are dropped by the Vite build — put the dark override here
+   in this non-scoped sheet. #toolbar-anchored (1 id, 2 class, 1 elem) so
+   it beats the light #toolbar .mw-page-chip rule. Light mode unchanged. */
+html.dark #toolbar .mw-page-chip {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    color: #f1f5f9 !important;
+}
+html.dark #toolbar .mw-page-chip:hover,
+html.dark #toolbar .mw-page-chip.mw-page-chip--open {
+    background-color: rgba(255, 255, 255, 0.14) !important;
+}
+html.dark #toolbar .mw-page-chip .mw-page-chip__label,
+html.dark #toolbar .mw-page-chip .mw-page-chip__chevron {
+    color: #f1f5f9 !important;
+}
+
+/* task-2026-09-06-ledark — DEFECT 3: PREVIEW and SAVE looked nearly
+   identical in dark mode (both dark navy). Keep SAVE the solid ink CTA
+   and demote PREVIEW to a GHOST/outline button in BOTH themes so the two
+   are obviously distinct. Targets the unique #mw-page-set-preview-mode id
+   (NOT the shared .live-edit-toolbar-buttons-view, which also skins
+   undo/redo/+ADD) so only PREVIEW becomes an outline. id + !important
+   beats the .dark .live-edit-toolbar-buttons-view fill and the generic
+   #toolbar .btn light rule. */
+#toolbar #mw-page-set-preview-mode.live-edit-toolbar-buttons {
+    background-color: transparent !important;
+    border: 1px solid #cbd2da !important;
+    color: #182433 !important;
+}
+#toolbar #mw-page-set-preview-mode.live-edit-toolbar-buttons:hover,
+#toolbar #mw-page-set-preview-mode.live-edit-toolbar-buttons:focus-visible {
+    background-color: rgba(24, 36, 51, 0.06) !important;
+    border-color: #182433 !important;
+    color: #182433 !important;
+}
+html.dark #toolbar #mw-page-set-preview-mode.live-edit-toolbar-buttons {
+    background-color: transparent !important;
+    border: 1px solid #4b5563 !important;
+    color: #e5e7eb !important;
+}
+html.dark #toolbar #mw-page-set-preview-mode.live-edit-toolbar-buttons:hover,
+html.dark #toolbar #mw-page-set-preview-mode.live-edit-toolbar-buttons:focus-visible {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    border-color: #9ca3af !important;
+    color: #ffffff !important;
+}
+
+/* ------------------------------------------------------------------ *
+ * Quick AI Edit panel — finish the sidebar box (tabs, field cards,    *
+ * empty state) so it reads as a polished, complete UI rather than     *
+ * unstyled default .btn rows. Palette matches the AI chat (ink        *
+ * #182433) and supports light + dark. task: style-quick-ai-panel      *
+ * ------------------------------------------------------------------ */
+#mw-live-edit-quickEditComponent-box .mw-control-box-content {
+    padding: 14px 14px 12px;
+}
+
+/* Segmented control: AI Chat / Edit fields */
+.mw-ai-quick-modes {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    margin: 0 0 14px;
+    background: #f2f3f5;
+    border-radius: 12px;
+}
+html.dark .mw-ai-quick-modes { background: #2a2d31; }
+.mw-ai-quick-modes .btn {
+    flex: 1 1 0;
+    border: none !important;
+    background: transparent !important;
+    color: #5b6472 !important;
+    padding: 8px 12px !important;
+    border-radius: 9px !important;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.2;
+    cursor: pointer;
+    box-shadow: none !important;
+    transition: background .15s ease, color .15s ease;
+}
+.mw-ai-quick-modes .btn:hover { color: #182433 !important; background: transparent !important; }
+html.dark .mw-ai-quick-modes .btn { color: #9aa3af !important; }
+html.dark .mw-ai-quick-modes .btn:hover { color: #e8eaed !important; }
+.mw-ai-quick-modes .btn.active,
+.mw-ai-quick-modes .btn.active:hover {
+    background: #fff !important;
+    color: #182433 !important;
+    box-shadow: 0 1px 2px rgba(24, 36, 51, .12) !important;
+}
+html.dark .mw-ai-quick-modes .btn.active,
+html.dark .mw-ai-quick-modes .btn.active:hover {
+    background: #3a3f45 !important;
+    color: #e8eaed !important;
+    box-shadow: none !important;
+}
+
+/* Edit-fields tab: section cards + collapsible type groups */
+.edit-fields-container { display: flex; flex-direction: column; gap: 12px; }
+.quick-ai-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    background: #fff;
+    border: 1px solid #18243318;
+    border-radius: 12px;
+}
+html.dark .quick-ai-card { background: #1f2226; border-color: #ffffff1f; }
+.quick-ai-type-group { display: flex; flex-direction: column; gap: 6px; }
+.quick-ai-type-group-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border: none;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    padding: 2px 0;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: #8a94a3;
+}
+.quick-ai-type-group-header::before {
+    content: "";
+    width: 0;
+    height: 0;
+    border-left: 4px solid currentColor;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    transform: rotate(90deg);
+    transition: transform .15s ease;
+    opacity: .8;
+}
+.quick-ai-type-group[data-open="false"] .quick-ai-type-group-header::before { transform: rotate(0deg); }
+.quick-ai-type-group[data-open="false"] .quick-ai-type-group-body { display: none; }
+.quick-ai-type-group-body { display: flex; flex-direction: column; gap: 8px; }
+
+/* Field rows */
+.form-control-live-edit-label-wrapper { display: flex; flex-direction: column; gap: 4px; }
+.live-edit-label { font-size: 12px; font-weight: 600; color: #5b6472; }
+html.dark .live-edit-label { color: #9aa3af; }
+.form-control-live-edit-input {
+    width: 100%;
+    border: 1px solid #18243326;
+    border-radius: 9px;
+    padding: 9px 11px;
+    font-size: 13px;
+    line-height: 1.4;
+    background: #fff;
+    color: #182433;
+    font-family: inherit;
+}
+.form-control-live-edit-input:focus { outline: none; border-color: #182433; box-shadow: 0 0 0 3px #18243314; }
+html.dark .form-control-live-edit-input { background: #1f2226; color: #e8eaed; border-color: #ffffff26; }
+html.dark .form-control-live-edit-input:focus { border-color: #e8eaed; box-shadow: 0 0 0 3px #ffffff1f; }
+
+/* Edit-fields empty state (no section selected) */
+.mw-quick-ai-edit-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    text-align: center;
+    color: #8a94a3;
+    padding: 34px 18px;
+}
+.mw-quick-ai-edit-empty-state__icon { opacity: .55; }
+.mw-quick-ai-edit-empty-state__text { margin: 0; font-size: 13px; line-height: 1.5; max-width: 240px; }
+
+/* ------------------------------------------------------------------ *
+ * Quick AI Edit — MOBILE. The panel goes full-screen (100vw) on phones,
+ * but the chat box was locked to a 60vh block that scrolled as one lump,
+ * wasting space and letting the input scroll off. Make the panel a real
+ * full-height flex column: tabs on top, the chat filling the rest with
+ * its OWN scrolling thread and the input pinned at the bottom (a proper
+ * messaging-app layout). task: quick-ai-mobile
+ * ------------------------------------------------------------------ */
+@media (max-width: 767px) {
+    /* Make the whole panel a flex column so the content fills the space BELOW
+       the panel header (no fragile calc that forgets the header height). */
+    #mw-live-edit-quickEditComponent-box {
+        display: flex !important;
+        flex-direction: column;
+    }
+    #mw-live-edit-quickEditComponent-box .mw-control-box-content {
+        flex: 1 1 auto;
+        min-height: 0;
+        height: auto !important;
+        max-height: none !important;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        padding: 10px 12px 12px;
+        gap: 0;
+    }
+    /* tab switcher stays fixed at the top */
+    #mw-live-edit-quickEditComponent-box .mw-ai-quick-modes { flex: 0 0 auto; margin-bottom: 10px; }
+    /* the AI chat (and the Edit-fields view) fill the remaining height */
+    #mw-live-edit-quickEditComponent-box .mw-ai-conv {
+        flex: 1 1 auto;
+        min-height: 0 !important;   /* beat the inline 60vh min-height */
+        height: auto !important;
+    }
+    #mw-live-edit-quickEditComponent-box .mw-ai-conv-thread { min-height: 0; }
+    /* the classic Edit-fields container also scrolls within the panel */
+    #mw-live-edit-quickEditComponent-box .mw-control-box-content > div:last-child { min-height: 0; overflow-y: auto; }
+    /* the input row sits flush at the bottom, with comfortable tap targets */
+    #mw-live-edit-quickEditComponent-box .mw-ai-conv-form { padding-bottom: max(6px, env(safe-area-inset-bottom)); }
+    /* 16px input prevents iOS Safari from zooming the page on focus */
+    #mw-live-edit-quickEditComponent-box .mw-ai-conv-input { font-size: 16px; }
+    /* bigger tap targets for the tabs */
+    #mw-live-edit-quickEditComponent-box .mw-ai-quick-modes .btn { padding: 10px 12px; min-height: 40px; }
+    /* keep suggestion chips easy to tap */
+    #mw-live-edit-quickEditComponent-box .mw-ai-conv-suggest button { padding: 9px 13px; }
+}
+
+/* ==================================================================
+ * task-2026-09-07-elementmenu / fontsize-stepper — RTE toolbar additions
+ * ------------------------------------------------------------------
+ * (1) fontSize is now a composite: compact − / + steppers flanking the
+ *     size dropdown, so the three read as ONE component (the old
+ *     standalone full-size −/+ buttons are removed).
+ * (2) the "⋮" button opens a small action menu (Duplicate / Edit
+ *     styles / Delete) rendered into the toolbar's document body.
+ * ================================================================== */
+.mw-editor-fontsize-stepper {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+}
+.mw-editor-fontsize-stepper .mw-editor-fontsize-step {
+    width: 24px;
+    min-width: 24px;
+    height: 28px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    opacity: .85;
+}
+.mw-editor-fontsize-stepper .mw-editor-fontsize-step:hover { opacity: 1; }
+.mw-editor-fontsize-stepper .mw-editor-fontsize-step svg { width: 15px; height: 15px; }
+/* the dropdown sits between the two steppers with no extra gap */
+.mw-editor-fontsize-stepper .mw-editor-font-size-selector { margin: 0; }
+
+.mw-editor-more-menu {
+    display: none;
+    position: fixed;
+    z-index: 100060;
+    min-width: 178px;
+    padding: 6px;
+    border-radius: 10px;
+    background: #182433;
+    color: #e5e7eb;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, .34), 0 1px 3px rgba(0, 0, 0, .22);
+}
+.mw-editor-more-menu__item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 9px 10px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 13px;
+    line-height: 1;
+    text-align: left;
+    cursor: pointer;
+}
+.mw-editor-more-menu__item:hover { background: rgba(255, 255, 255, .12); }
+.mw-editor-more-menu__item svg { flex: 0 0 auto; opacity: .9; }
+.mw-editor-more-menu__item.is-danger:hover { background: rgba(220, 57, 57, .38); }
+html.dark .mw-editor-more-menu { background: #0f1722; box-shadow: 0 10px 30px rgba(0, 0, 0, .55); }
+
+/* task-2026-09-07-devicedark — device dropdown panel dark-mode rules live here
+ * (non-scoped): this project's Vite build drops Vue <style scoped> .dark rules,
+ * so the scoped :global(html.dark) panel rule never applied — the panel stayed
+ * white and the theme's light segmented-cell icons rendered faded on it. */
+html.dark .mw-device-switch__panel,
+.dark .mw-device-switch__panel {
+    background: #1b1e22 !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .5) !important;
+}
+html.dark .mw-device-switch__panel .mw-segmented__cell,
+.dark .mw-device-switch__panel .mw-segmented__cell {
+    color: #e5e7eb !important;
+}
+html.dark .mw-device-switch__panel .mw-segmented__cell.is-active,
+html.dark .mw-device-switch__panel .mw-segmented__cell.live-edit-resolution-active,
+.dark .mw-device-switch__panel .mw-segmented__cell.is-active,
+.dark .mw-device-switch__panel .mw-segmented__cell.live-edit-resolution-active {
+    background: rgba(255, 255, 255, .16) !important;
+    color: #ffffff !important;
+}
+
+/* task-2026-09-07-devicemobile — `@media (max-width:1200px){#preview-nav{display:none}}`
+ * hid the device nav on small screens (device preview was originally desktop-
+ * only). Now that it lives inside the single-icon dropdown, force it visible
+ * INSIDE the panel at every width, and give the cells explicit compact sizing
+ * (the theme's inline-pill rules make them flex:1 1 0 / ~96px, which overflows
+ * the little dropdown). Three fixed 44x40 tap targets in a row. */
+.mw-device-switch__panel #preview-nav,
+.mw-device-switch__panel .mw-live-edit-resolutions-wrapper {
+    display: flex !important;
+    width: auto !important;
+    gap: 4px;
+}
+.mw-device-switch__panel .mw-segmented__cell {
+    flex: 0 0 auto !important;
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 0 !important;
+}
+.mw-device-switch__panel .mw-segmented__cell svg {
+    width: 20px !important;
+    height: 20px !important;
+}
+/* shrink-to-fit the three cells, stay on-screen, open right-aligned */
+.mw-device-switch__panel {
+    right: 0;
+    left: auto;
+    width: auto;
+    max-width: calc(100vw - 16px);
+    overflow: hidden;
+}
+
+/* task-2026-09-07-devicetrigger — the single device-preview trigger inherited a
+   light #f0f0f0 pill, which reads as a jarring white box on the dark toolbar.
+   In dark mode make it a subtle translucent-light pill with light glyphs. */
+html.dark #toolbar .mw-device-switch__trigger,
+.dark #toolbar .mw-device-switch__trigger {
+    background-color: rgba(255, 255, 255, .08) !important;
+    border-color: transparent !important;
+    color: #e5e7eb !important;
+}
+html.dark #toolbar .mw-device-switch__trigger:hover,
+.dark #toolbar .mw-device-switch__trigger:hover {
+    background-color: rgba(255, 255, 255, .16) !important;
+}
+
+/* task-2026-09-07-panelfill — the Quick AI Edit panel must fill the sidebar at
+   ALL widths so the composer sits flush at the bottom. Previously only the
+   max-width:767px block made it a flex column, so on desktop the content was
+   content-height and the composer floated up with dead space below it (and the
+   box itself, height:100% at top:toolbar, overflowed the viewport). Bound the
+   box height and make the box → content → conv a filling flex column. */
+#mw-live-edit-quickEditComponent-box.mw-control-box-right {
+    height: calc(100dvh - var(--toolbar-height)) !important;
+    max-height: calc(100dvh - var(--toolbar-height)) !important;
+    bottom: 0;
+    display: flex !important;
+    flex-direction: column;
+}
+#mw-live-edit-quickEditComponent-box .mw-control-box-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto !important;
+    max-height: none !important;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+#mw-live-edit-quickEditComponent-box .mw-ai-quick-modes { flex: 0 0 auto; }
+#mw-live-edit-quickEditComponent-box .mw-ai-conv {
+    flex: 1 1 auto;
+    min-height: 0 !important;
+    height: auto !important;
+}
+#mw-live-edit-quickEditComponent-box .mw-ai-conv-thread { min-height: 0; }
+
+/* task-2026-09-14-ai-rewrite — style the AI "Rewrite" popup (mw.dialog content,
+   rendered in the top window). Its tabs (Rewrite / Tone) and action chips
+   (Simplify / Paraphrase / …) had no styles and rendered as plain inline text. */
+.ai-text-generator-container {
+    padding: 12px 14px 14px;
+    min-width: 360px;
+    box-sizing: border-box;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+.ai-text-generator-container .form-control {
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 14px;
+    outline: none;
+}
+.ai-text-generator-container .form-control:focus {
+    border-color: #182433;
+    box-shadow: 0 0 0 3px rgba(24, 36, 51, 0.12);
+}
+.ai-text-generator-container #ai-text-generator-submit {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    background: #182433;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-weight: 500;
+    font-size: 14px;
+    cursor: pointer;
+}
+.ai-text-generator-container #ai-text-generator-submit:hover { background: #26364a; }
+.ai-text-generator-container #ai-text-generator-submit svg { width: 16px; height: 16px; flex: 0 0 auto; }
+.ai-text-generator-container #ai-text-generator-options { margin-top: 12px; }
+/* task-2026-09-24 — Link-editor / picker footer: the OK (primary) button sat
+   16px BELOW Cancel (misaligned footer). The form-field STACK-SPACING rule
+   `.mw_modal_live_edit_link_editor_settings .mw-ui-form-controller-root > div > * + *`
+   adds margin-top:16px!important to every 2nd+ sibling, and it also caught the
+   footer's second button. Center both buttons on one row and, with a selector
+   specific enough to beat that stack rule (0,3,1 > 0,2,1), zero the stray
+   vertical margin so Cancel and OK line up. */
+.mw-ui-form-controllers-footer {
+    align-items: center;
+    gap: 8px;
+}
+.mw_modal_live_edit_link_editor_settings .mw-ui-form-controllers-footer > button.mw-liveedit-button-animation-component,
+.mw-ui-form-controllers-footer > button.mw-liveedit-button-animation-component {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+/* Popup tabs (.mw-adm-liveedit-tabs inside any mw-dialog / the AI popup) styled
+   to match the module-settings Filament tabs: muted → ink, ink underline,
+   sentence case. !important overrides the leftover .btn / .btn-link /
+   .active-info / padding-inline:0 rules from the admin styles. */
+.mw-dialog nav[role="tablist"],
+.ai-text-generator-container nav[role="tablist"] {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid #e6e6e2;
+    margin-bottom: 12px;
+    padding: 0;
+}
+.mw-dialog nav[role="tablist"] a.mw-adm-liveedit-tabs,
+.ai-text-generator-container nav[role="tablist"] a.mw-adm-liveedit-tabs {
+    text-decoration: none !important;
+    color: #77776f !important;
+    font-weight: 500;
+    font-size: 13px;
+    line-height: 1.2;
+    padding: 9px 14px !important;
+    margin: 0 0 -1px 0 !important;
+    border: 0 !important;
+    border-bottom: 2px solid transparent !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    cursor: pointer;
+    flex: 0 0 auto;
+}
+.mw-dialog nav[role="tablist"] a.mw-adm-liveedit-tabs:hover,
+.ai-text-generator-container nav[role="tablist"] a.mw-adm-liveedit-tabs:hover {
+    color: #182433 !important;
+}
+.mw-dialog nav[role="tablist"] a.mw-adm-liveedit-tabs.active,
+.mw-dialog nav[role="tablist"] a.mw-adm-liveedit-tabs.active-info,
+.mw-dialog nav[role="tablist"] a.mw-adm-liveedit-tabs[aria-selected="true"],
+.ai-text-generator-container nav[role="tablist"] a.mw-adm-liveedit-tabs.active,
+.ai-text-generator-container nav[role="tablist"] a.mw-adm-liveedit-tabs.active-info,
+.ai-text-generator-container nav[role="tablist"] a.mw-adm-liveedit-tabs[aria-selected="true"] {
+    color: #182433 !important;
+    border-bottom-color: #182433 !important;
+    background: transparent !important;
+}
+.ai-text-generator-container .mw-aiwriter-tab {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+.ai-text-generator-container .mw-aiwriter-tab button {
+    display: inline-flex;
+    align-items: center;
+    padding: 7px 14px;
+    border: 1px solid #e6e6e2;
+    border-radius: 999px;
+    background: #f4f4f2;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.2;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .12s, color .12s, border-color .12s;
+}
+.ai-text-generator-container .mw-aiwriter-tab button:hover {
+    background: #182433;
+    color: #fff;
+    border-color: #182433;
+}
+
+/* task-2026-09-14-ai-close — the AI Rewrite popup's re-homed close button. */
+.mw-ai-popup-close.mw-dialog-close {
+    top: 10px !important;
+    right: 10px !important;
+    width: 30px !important;
+    height: 30px !important;
+    border-radius: 8px !important;
+    color: #77776f !important;
+    z-index: 3;
+}
+.mw-ai-popup-close.mw-dialog-close:hover {
+    background-color: #f4f4f2 !important;
+    color: #182433 !important;
+}
+
+/* task-2026-09-14-ink-sweep — AI Rewrite popup: dark mode + touch targets
+   (swarm ranks 4 & 6). The popup was light-only on a dark-honouring surface. */
+.ai-text-generator-container #ai-text-generator-submit,
+.ai-text-generator-container .mw-aiwriter-tab button {
+    min-height: 36px;
+}
+.ai-text-generator-container nav[role="tablist"] a.mw-adm-liveedit-tabs {
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+}
+@media (max-width: 767px) {
+    .ai-text-generator-container #ai-text-generator-submit,
+    .ai-text-generator-container .mw-aiwriter-tab button,
+    .ai-text-generator-container nav[role="tablist"] a.mw-adm-liveedit-tabs {
+        min-height: 44px;
+    }
+    .ai-text-generator-container .form-control { font-size: 16px; }
+}
+/* dark mode */
+html.dark .ai-text-generator-container .form-control,
+.dark .ai-text-generator-container .form-control {
+    background: #1f2226;
+    color: #e8eaed;
+    border-color: rgba(255, 255, 255, 0.15);
+}
+html.dark .ai-text-generator-container .form-control::placeholder,
+.dark .ai-text-generator-container .form-control::placeholder { color: #9aa3af; }
+html.dark .ai-text-generator-container .form-control:focus,
+.dark .ai-text-generator-container .form-control:focus {
+    border-color: #e8eaed;
+    box-shadow: 0 0 0 3px rgba(232, 234, 237, 0.14);
+}
+html.dark .ai-text-generator-container .mw-aiwriter-tab button,
+.dark .ai-text-generator-container .mw-aiwriter-tab button {
+    background: #2a2d31;
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #e8eaed;
+}
+html.dark .ai-text-generator-container .mw-aiwriter-tab button:hover,
+.dark .ai-text-generator-container .mw-aiwriter-tab button:hover {
+    background: #e8eaed;
+    color: #182433;
+    border-color: #e8eaed;
+}
+html.dark .ai-text-generator-container nav[role="tablist"],
+.dark .ai-text-generator-container nav[role="tablist"] { border-bottom-color: rgba(255, 255, 255, 0.12); }
+html.dark .ai-text-generator-container nav[role="tablist"] a.mw-adm-liveedit-tabs,
+.dark .ai-text-generator-container nav[role="tablist"] a.mw-adm-liveedit-tabs { color: #9aa3af !important; }
+html.dark .ai-text-generator-container nav[role="tablist"] a.mw-adm-liveedit-tabs:hover,
+html.dark .ai-text-generator-container nav[role="tablist"] a.mw-adm-liveedit-tabs.active,
+html.dark .ai-text-generator-container nav[role="tablist"] a.mw-adm-liveedit-tabs.active-info,
+.dark .ai-text-generator-container nav[role="tablist"] a.mw-adm-liveedit-tabs:hover,
+.dark .ai-text-generator-container nav[role="tablist"] a.mw-adm-liveedit-tabs.active,
+.dark .ai-text-generator-container nav[role="tablist"] a.mw-adm-liveedit-tabs.active-info {
+    color: #e8eaed !important;
+    border-bottom-color: #e8eaed !important;
+}

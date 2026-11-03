@@ -1,0 +1,268 @@
+import MicroweberBaseClass from "../../../../containers/base-class.js";
+
+class LiveEditDOMTree extends MicroweberBaseClass {
+    constructor(options = {}) {
+        super();
+
+        this.config(options);
+        this.init();
+    }
+
+    tree = null;
+    box = null;
+
+    visible = false;
+
+    config(options) {
+        const defaults = {
+            target: mw.top(),
+        };
+
+        this.settings = Object.assign({}, defaults, options);
+    }
+
+    buildBox() {
+        this.box = new this.settings.target.controlBox({
+            content: ``,
+            position: "left",
+            id: "mw-live-edit-domtree-box",
+            closeButton: true,
+            title: mw.lang("Layers"),
+        });
+
+        // task-2026-05-28-4b9d88 / AI-1223 — wire the Layers panel header
+        // <h3> with an id so the tree root <ul aria-labelledby="..."> can
+        // reference it (ARIA Tree pattern). Done here (not inside controlBox)
+        // so other controlBox consumers keep their unscoped headings.
+        if (this.box.box) {
+            var heading = this.box.box.querySelector('.mw-control-box-title');
+            if (heading) {
+                heading.id = 'mw-domtree-layers-heading';
+            }
+        }
+
+        this.box.on("show", () => {
+            this.dispatch("show", this);
+        });
+        this.box.on("hide", () => {
+            this.dispatch("hide", this);
+        });
+    }
+    show() {
+        this.box.show();
+        this.visible = true;
+        this.dispatch("show", this);
+    }
+    hide() {
+        this.box.hide();
+        this.visible = false;
+        this.dispatch("hide", this);
+    }
+    buildTree() {
+        let shouldScroll = true;
+        this.tree = new this.settings.target.DomTree({
+            element: this.box.boxContent,
+            resizable: false,
+            sortable: false,
+            // AI-775 Slice A (task-2026-05-17-551f7e) — opt the Layers panel
+            // into the meaningful-layers filter. Walks .main-content /
+            // .module-layouts / .module / [data-type] only; caps cardinality
+            // at <=100 rows on the 6-section demo page (was ~1,787 with the
+            // default .edit walk). Per-item show/hide/lock/drag (Slice B) and
+            // label spacing polish (Slice C) deferred to follow-up commits.
+            meaningfulOnly: true,
+
+            targetDocument: mw.app.canvas.getDocument(),
+
+            canSelect: function (node, li) {
+                if (node.id) {
+                    return true;
+                }
+
+                var liveEdit = mw.top().app.liveEdit;
+                if (liveEdit && liveEdit.liveEditHelpers) {
+                    var isInaccessible = liveEdit.liveEditHelpers.targetIsInacesibleModule(node);
+                    if (isInaccessible) {
+                        return false;
+                    }
+                }
+
+                return true;
+            },
+            onHover: function (e, target, node, element) {},
+            onSelect: (e, target, node, element) => {
+                this.settings.target.app.dispatch(
+                    "mw.elementStyleEditor.selectNode",
+                    node
+                );
+                if (shouldScroll) {
+                    node.scrollIntoView({
+                        behavior: "smooth",
+                        block: "center",
+                        inline: "center",
+                    });
+                    if (node.classList.contains("element")) {
+                        mw.app.liveEdit.handles.set("element", node);
+                    } else if (node.classList.contains("module")) {
+                        mw.app.liveEdit.handles.set("module", node);
+                    }
+                }
+            },
+        });
+
+        const bindStateChange = () => {
+            mw.app.state.on("change", (data) => {
+                if (data.active && data.active.target) {
+                    if (data.active.target === "$multistate") {
+                        data.active.value.forEach((obj) => {
+                            this.tree.refresh(obj.target);
+                            this.tree.select(obj.target);
+                        });
+                    } else if (data.active.target.nodeName) {
+                        this.tree.refresh(data.active.target);
+                        this.tree.select(data.active.target);
+                    }
+                }
+            });
+        };
+
+        if (mw.app.state) {
+            bindStateChange();
+        } else {
+            // state module registers later when the iframe content loads
+            mw.app.on("register", () => {
+                if (mw.app.state) {
+                    bindStateChange();
+                }
+            });
+        }
+
+        let _activeSortStartData = null,
+            _activeSortStartStateData = null;
+
+        this.tree.on("sortStart", (data) => {
+            _activeSortStartData = { ...data };
+            const startEdit = mw.tools.firstParentOrCurrentWithAnyOfClasses(
+                _activeSortStartData.target,
+                ["edit"]
+            );
+            if (startEdit) {
+                _activeSortStartStateData = {
+                    target: startEdit,
+                    value: startEdit.innerHTML,
+                };
+            } else {
+                _activeSortStartStateData = null;
+            }
+        });
+        this.tree.on("sort", (data) => {
+            if (data.targetPrev) {
+                data.targetPrev.after(data.target);
+            } else if (data.targetNext) {
+                data.targetNext.before(data.target);
+            } else if (data.targetParent) {
+                data.targetParent.appendChild(data.target);
+            }
+            mw.top().app.liveEdit.handles.hide();
+
+            if (_activeSortStartData) {
+                const endEdit = mw.tools.firstParentOrCurrentWithAnyOfClasses(
+                    data.target,
+                    ["edit"]
+                );
+                if (endEdit && _activeSortStartStateData) {
+                    mw.app.state.record({
+                        target: "$multistate",
+                        value: [
+                            _activeSortStartStateData,
+                            {
+                                target: endEdit,
+                                value: endEdit.innerHTML,
+                            },
+                        ],
+                    });
+                }
+            }
+        });
+
+        const handleTargetChange = (target) => {
+            const targetParent = mw
+                .top()
+                .tools.firstParentOrCurrentWithAnyOfClasses(target, [
+                    "element",
+                    "edit",
+                    "module",
+                ]);
+
+            if (targetParent) {
+                this.tree.refresh(targetParent);
+                this.tree.select(targetParent);
+            }
+        };
+
+        mw.top().app.on("dragEnd", (target) => {
+            handleTargetChange(target.parentElement);
+        });
+
+        mw.top().app.on("moduleInserted", (data) => {
+            handleTargetChange(data.target.parentElement);
+        });
+
+        const liveEditHandleTargetChange = (target) => {
+            shouldScroll = false;
+            this.tree.select(target);
+            shouldScroll = true;
+        };
+
+        const bindLiveEditHandles = () => {
+            if (!mw.top().app.liveEdit || !mw.top().app.liveEdit.handles) return;
+            mw.top()
+                .app.liveEdit.handles.get("module")
+                .on("targetChange", (target) => {
+                    liveEditHandleTargetChange(target);
+                });
+            mw.top()
+                .app.liveEdit.handles.get("element")
+                .on("targetChange", (target) => {
+                    liveEditHandleTargetChange(target);
+                });
+        };
+
+        if (mw.top().app.liveEdit) {
+            bindLiveEditHandles();
+        } else {
+            mw.top().app.on("register", () => {
+                if (mw.top().app.liveEdit) {
+                    bindLiveEditHandles();
+                }
+            });
+        }
+    }
+    init() {
+        this.buildBox();
+        this.buildTree();
+
+        mw.top().app.canvas.on("liveEditCanvasLoaded", (event) => {
+            this.buildTree();
+        });
+    }
+}
+(async function () {
+    const states = ["complete", "interactive"];
+    let config = {};
+    mw.top().app.domTree = await new Promise(function (resolve, reject) {
+        if (states.indexOf(mw.top().win.document.readyState) !== -1) {
+            resolve(new LiveEditDOMTree(config));
+        } else {
+            addEventListener("load", () => {
+                resolve(new LiveEditDOMTree(config));
+            });
+        }
+    });
+
+    mw.top().app.dispatch("DOMTreeReady", mw.top().app.domTree);
+
+    mw.top().app.domTree.on("hide", () => {
+        mw.top().app.liveEditWidgets.closeLayersSidebar();
+    });
+})();

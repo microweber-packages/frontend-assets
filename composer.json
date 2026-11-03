@@ -1,0 +1,33 @@
+{
+    "name": "microweber-packages/frontend-assets",
+    "description": "Microweber CMS - Frontend Assets",
+    "keywords": [
+        "microweber-packages",
+        "laravel",
+        "microweber",
+        "microweber-frontend-assets"
+    ],
+    "license": "MIT",
+    "type": "library",
+    "autoload": {
+        "psr-4": {
+            "MicroweberPackages\\FrontendAssets\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "MicroweberPackages\\FrontendAssets\\Tests\\": "tests/"
+        }
+    },
+    "scripts": [],
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": []
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "require": {
+        "microweber-packages/microweber-package": "*",
+        "spatie/laravel-package-tools": "^1.16"
+    }
+}
