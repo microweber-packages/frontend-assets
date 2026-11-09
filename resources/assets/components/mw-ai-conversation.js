@@ -37,6 +37,9 @@ html.dark .mw-ai-conv{ color:#e8eaed; }
 .mw-ai-conv-iconbtn:hover{ background:#18243310; }
 html.dark .mw-ai-conv-iconbtn:hover{ background:#ffffff14; }
 .mw-ai-conv-iconbtn svg{ width:18px; height:18px; opacity:.72; }
+.mw-ai-conv-swarm-btn.is-active{ background:#0d6efd; color:#fff; }
+.mw-ai-conv-swarm-btn.is-active svg{ opacity:1; fill:currentColor; }
+.mw-ai-conv-swarm-btn.is-active:hover{ background:#0b5ed7; }
 
 .mw-ai-conv-thread{
     flex:1 1 auto; overflow-y:auto; padding:4px 2px; display:flex; flex-direction:column; gap:18px;
@@ -67,6 +70,22 @@ html.dark .mw-ai-conv-msg.user .mw-ai-conv-msg-bubble{ background:#39424f; color
 html.dark .mw-ai-conv-queued{ background:#ffffff12; color:#e8eaed; border-color:#ffffff2e; }
 
 .mw-ai-conv-edits{ display:flex; flex-direction:column; gap:5px; }
+/* task-2026-11-07 — all the tool-call chips for one turn collapse under ONE
+   block: a summary pill ("N steps") that expands to the individual chips. */
+.mw-ai-conv-edits-group{ align-self:flex-start; max-width:100%; }
+.mw-ai-conv-edits-head{
+    display:inline-flex; align-items:center; gap:7px; align-self:flex-start;
+    padding:5px 11px; border-radius:999px; font-size:12px; font-weight:600;
+    background:#18243309; color:#182433; border:1px solid #18243314;
+    cursor:pointer; font-family:inherit; line-height:1.3; transition:background-color .15s ease;
+}
+.mw-ai-conv-edits-head:hover{ background:#18243312; }
+html.dark .mw-ai-conv-edits-head{ background:#ffffff0d; color:#dfe3e8; border-color:#ffffff1f; }
+html.dark .mw-ai-conv-edits-head:hover{ background:#ffffff16; }
+.mw-ai-conv-edits-ic{ font-size:12px; opacity:.85; }
+.mw-ai-conv-edits-caret{ margin-left:2px; font-size:10px; opacity:.6; }
+.mw-ai-conv-edits-list{ display:flex; flex-direction:column; gap:5px; }
+.mw-ai-conv-edits-group.is-collapsed .mw-ai-conv-edits-list{ display:none; }
 .mw-ai-conv-edit{
     display:inline-flex; align-items:center; gap:7px; align-self:flex-start;
     padding:5px 11px; border-radius:999px; font-size:12px; font-weight:500;
@@ -288,6 +307,7 @@ export class MwAiConversation extends MicroweberBaseClass {
             <div class="mw-ai-conv-head">
                 <div class="mw-ai-conv-title">${this.icon("magic") || this.icon("edit") || ""}<span>${mw.lang("AI Assistant")}</span></div>
                 <div class="mw-ai-conv-head-actions">
+                    <button type="button" class="mw-ai-conv-iconbtn mw-ai-conv-swarm-btn" title="${mw.lang("Swarm mode — many agents build the site in parallel")}" aria-label="${mw.lang("Toggle swarm mode")}" aria-pressed="false">${this.icon("users") || this.icon("group") || "⚡"}</button>
                     <button type="button" class="mw-ai-conv-iconbtn mw-ai-conv-history-btn" title="${mw.lang("History")}" aria-label="${mw.lang("History")}">${this.icon("history") || this.icon("list") || "☰"}</button>
                     <button type="button" class="mw-ai-conv-iconbtn mw-ai-conv-new-btn" title="${mw.lang("New chat")}" aria-label="${mw.lang("New chat")}">${this.icon("plus") || "+"}</button>
                 </div>
@@ -325,6 +345,8 @@ export class MwAiConversation extends MicroweberBaseClass {
         this.attachments = el.querySelector(".mw-ai-conv-attachments");
         this.attachBtn = el.querySelector(".mw-ai-conv-attach-btn");
         this.fileInput = el.querySelector(".mw-ai-conv-file");
+        this.swarmBtn = el.querySelector(".mw-ai-conv-swarm-btn");
+        this._swarmMode = false;
         this.pendingImages = [];
 
         // Floating "scroll to latest" arrow: shown when the user scrolls up.
@@ -367,6 +389,9 @@ export class MwAiConversation extends MicroweberBaseClass {
             }
         });
 
+        if (this.swarmBtn) {
+            this.swarmBtn.addEventListener("click", () => this.toggleSwarm());
+        }
         this.root.querySelector(".mw-ai-conv-new-btn").addEventListener("click", () => this.newChat());
         this.root.querySelector(".mw-ai-conv-history-btn").addEventListener("click", () => this.openHistory());
         this.root.querySelector(".mw-ai-conv-history-close").addEventListener("click", () => this.closeHistory());
@@ -699,7 +724,34 @@ export class MwAiConversation extends MicroweberBaseClass {
         return parts.join("\n\n").trim();
     }
 
+    // Lazily turn the per-turn edits container into ONE collapsible block: a
+    // summary pill ("N steps") + a hidden list holding the individual tool chips.
+    // Returns the list the chips are appended to.
+    _ensureEditsGroup(container) {
+        let list = container.querySelector(":scope > .mw-ai-conv-edits-list");
+        if (list) { return list; }
+        container.classList.add("mw-ai-conv-edits-group", "is-collapsed");
+        const head = document.createElement("button");
+        head.type = "button";
+        head.className = "mw-ai-conv-edits-head";
+        head.innerHTML = '<span class="mw-ai-conv-edits-ic" aria-hidden="true">✦</span>'
+            + '<span class="mw-ai-conv-edits-summary"></span>'
+            + '<span class="mw-ai-conv-edits-caret" aria-hidden="true">▸</span>';
+        list = document.createElement("div");
+        list.className = "mw-ai-conv-edits-list";
+        container.appendChild(head);
+        container.appendChild(list);
+        head.addEventListener("click", () => {
+            const collapsed = container.classList.toggle("is-collapsed");
+            const caret = head.querySelector(".mw-ai-conv-edits-caret");
+            if (caret) { caret.textContent = collapsed ? "▸" : "▾"; }
+            if (!collapsed) { this.scrollDown(); }
+        });
+        return list;
+    }
+
     addEdit(container, edit, result) {
+        const list = this._ensureEditsGroup(container);
         const ok = !result || result.ok !== false;
         const wrap = document.createElement("div");
         wrap.className = "mw-ai-conv-editwrap";
@@ -730,7 +782,16 @@ export class MwAiConversation extends MicroweberBaseClass {
             chip.innerHTML += ` <code>${String(result.message)}</code>`;
         }
 
-        container.appendChild(wrap);
+        list.appendChild(wrap);
+        // Update the summary count, and surface errors by auto-expanding the block.
+        const n = list.children.length;
+        const summary = container.querySelector(":scope > .mw-ai-conv-edits-head .mw-ai-conv-edits-summary");
+        if (summary) { summary.textContent = n + " " + mw.lang(n === 1 ? "step" : "steps"); }
+        if (!ok) {
+            container.classList.remove("is-collapsed");
+            const caret = container.querySelector(":scope > .mw-ai-conv-edits-head .mw-ai-conv-edits-caret");
+            if (caret) { caret.textContent = "▾"; }
+        }
         this.scrollDown();
     }
 
@@ -822,6 +883,92 @@ export class MwAiConversation extends MicroweberBaseClass {
         return true;
     }
 
+    // Toggle swarm mode (many agents build in parallel). Reflected on the header
+    // button via aria-pressed + an `is-active` class.
+    toggleSwarm() {
+        this._swarmMode = !this._swarmMode;
+        if (this.swarmBtn) {
+            this.swarmBtn.setAttribute("aria-pressed", this._swarmMode ? "true" : "false");
+            this.swarmBtn.classList.toggle("is-active", this._swarmMode);
+        }
+        if (this.input) {
+            this.input.setAttribute("placeholder", this._swarmMode
+                ? mw.lang("Describe the whole site — the swarm will build every page…")
+                : mw.lang("Ask AI, or paste a design…"));
+        }
+    }
+
+    // Swarm turn: drive window.mw.aiSwarm (planner -> per-lane workers over one SSE)
+    // and render the build board; the router performs ONE save after all lanes done.
+    async _sendSwarm(text, ui) {
+        const self = this;
+        const { turn, editsWrap, typing } = ui;
+        const board = window.mwAiSwarmBoard || null;
+        if (board) {
+            try { board.mount(editsWrap); } catch (e) {}
+        }
+        // Live per-agent cursors on the canvas (best-effort; no-op off-canvas).
+        const cursors = window.mwAiSwarmCursors || null;
+        try {
+            const summary = await mw.aiSwarm.start({
+                message: text,
+                contextBundle: {
+                    chat_id: this.chatId || undefined,
+                    content_id: this.settings.contentId || undefined,
+                    screenshot: ui.screenshot,
+                    reference_images: ui.refImages,
+                    agent_type: ui.agentType,
+                    // Which JS libraries are loaded (gsap, ScrollTrigger, jQuery, …)
+                    // so every lane worker can drive motion with them.
+                    libraries: (function () { try { return MwAi().collectLibraries(); } catch (e) { return undefined; } })(),
+                },
+                onPlan(plan) {
+                    if (plan && plan.chat_id) { self._rememberChat(plan.chat_id); }
+                    if (board) { try { board.setPlan(plan); } catch (e) {} }
+                    if (cursors) { try { cursors.start(plan); } catch (e) {} }
+                    // Follow the growing board (respects a user who scrolled up).
+                    self.scrollDown();
+                },
+                onLane(agentId, status, built, total, meta) {
+                    if (board) {
+                        try { board.updateLane(agentId, { status: status, built: built, total: total, title: meta && meta.title, url: meta && meta.url }); } catch (e) {}
+                    }
+                    if (cursors && (status === "done" || status === "error")) { try { cursors.finishLane(agentId); } catch (e) {} }
+                    self.scrollDown();
+                },
+                onTool(agentId, edit) {
+                    self._dirty = true;
+                    if (board) { try { board.tool(agentId, edit); } catch (e) {} }
+                    if (cursors) { try { cursors.tool(agentId, edit); } catch (e) {} }
+                    self.scrollDown();
+                },
+                onDone(sum) {
+                    if (board) { try { board.finish(sum); } catch (e) {} }
+                    if (cursors) { try { cursors.finishAll(); } catch (e) {} }
+                    self.scrollDown();
+                },
+                onError(msg) {
+                    self.addEdit(editsWrap, { tool: "error" }, { ok: false, message: msg });
+                },
+            });
+            typing.remove();
+            const n = (summary && summary.lanes) ? summary.lanes.length : 0;
+            const bubble = document.createElement("div");
+            bubble.className = "mw-ai-conv-msg-bubble mw-ai-md";
+            bubble.innerHTML = this.renderMarkdown(n
+                ? (mw.lang("Swarm build complete — ") + n + " " + mw.lang("page(s) built."))
+                : mw.lang("Done."));
+            turn.appendChild(bubble);
+            this.scrollDown();
+            self._dirty = false;
+        } catch (e) {
+            try { typing.remove(); } catch (_e) {}
+            self.addEdit(editsWrap, { tool: "error" }, { ok: false, message: String((e && e.message) || e) });
+        } finally {
+            this.setPending(false);
+        }
+    }
+
     async send(text) {
         // Consume any pasted/attached reference images for this turn.
         const refImages = this.pendingImages.slice();
@@ -858,6 +1005,13 @@ export class MwAiConversation extends MicroweberBaseClass {
         // surface such as the admin panel sidebar).
         const screenshot = (this.settings.canvas !== false) ? await this.captureScreenshot() : null;
         const agentType = this.settings.agentType || "liveedit";
+
+        // Swarm mode: route the whole build through the coordinator (planner +
+        // per-lane workers) and render the multi-agent build board instead of the
+        // single-agent tool stream. Falls back to the normal path if unavailable.
+        if (this._swarmMode && window.mw && mw.aiSwarm) {
+            return this._sendSwarm((text || mw.lang("Build this site.")), { turn, editsWrap, typing, refImages, screenshot, agentType });
+        }
 
         try {
             const done = await MwAi().agentChatStream(

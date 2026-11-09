@@ -1449,7 +1449,10 @@ html.mw-live-edit-sidebar-start:not(.mw-live-edit-admin-open) #live-edit-frame-h
 }
 
 #mw-live-edit-domtree-box,
-aside.fi-sidebar {
+.fi-main-sidebar {
+    /* Filament v5 renders the nav sidebar as <div class="fi-main-sidebar">
+       (was <aside class="fi-sidebar">). Match the new element so the live-edit
+       admin drawer keeps the standard sidebar width. */
     width: var(--sidebar-start-size);
 }
 
@@ -1811,6 +1814,57 @@ html.dark #toolbar .mw-page-chip.mw-page-chip--open {
 html.dark #toolbar .mw-page-chip .mw-page-chip__label,
 html.dark #toolbar .mw-page-chip .mw-page-chip__chevron {
     color: #f1f5f9 !important;
+}
+
+/* Toolbar dropdown controls — unify the page chip ("Plain Home ⌄") and the
+   multilanguage selector ("🏳 English") into one cohesive, polished pill look
+   (soft gray fill, 8px radius, 40px target, chevron). Scoped to #toolbar so it
+   never leaks to other .custom-dropdown users. Sits AFTER the base page-chip
+   rules so it wins by source order (same #toolbar specificity). */
+#toolbar .mw-page-chip,
+#toolbar .custom-dropdown .dropdown-trigger {
+    background-color: #f0f2f5 !important;
+    border: 1px solid #e3e6ea !important;
+    border-radius: 8px !important;
+    color: #182433 !important;
+    min-height: 40px !important;
+    min-width: 0 !important;
+    padding: 8px 12px !important;
+    font-weight: 500 !important;
+    box-shadow: none !important;
+    transition: background-color .15s ease, border-color .15s ease !important;
+}
+#toolbar .mw-page-chip:hover,
+#toolbar .mw-page-chip.mw-page-chip--open,
+#toolbar .custom-dropdown .dropdown-trigger:hover,
+#toolbar .custom-dropdown .dropdown-trigger[aria-expanded="true"] {
+    background-color: #e7ebf0 !important;
+    border-color: #d5dae1 !important;
+}
+/* The page chip ships its own SVG chevron; give the language trigger a matching
+   CSS caret so both read as dropdowns. */
+#toolbar .custom-dropdown .dropdown-trigger::after {
+    content: "";
+    width: 7px; height: 7px; margin-left: 4px; flex: 0 0 auto;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(45deg) translateY(-2px);
+    opacity: .5;
+    transition: transform .18s ease, opacity .18s ease;
+}
+#toolbar .custom-dropdown .dropdown-trigger[aria-expanded="true"]::after {
+    transform: rotate(225deg) translateY(2px);
+    opacity: .85;
+}
+/* Dark-mode parity for the language trigger (page chip handled above). */
+html.dark #toolbar .custom-dropdown .dropdown-trigger {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(255, 255, 255, 0.14) !important;
+    color: #f1f5f9 !important;
+}
+html.dark #toolbar .custom-dropdown .dropdown-trigger:hover,
+html.dark #toolbar .custom-dropdown .dropdown-trigger[aria-expanded="true"] {
+    background-color: rgba(255, 255, 255, 0.14) !important;
 }
 
 /* task-2026-09-06-ledark — DEFECT 3: PREVIEW and SAVE looked nearly
