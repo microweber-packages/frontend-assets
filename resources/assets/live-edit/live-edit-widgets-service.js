@@ -148,7 +148,7 @@ export class LiveEditWidgetsService extends BaseComponent{
 
     #zIndex(target) {
         const treeBox = mw.top().app.domTree?.box?.box;
-        const adminBox = mw.top().doc.querySelector('aside.fi-sidebar');
+        const adminBox = mw.top().doc.querySelector('.fi-main-sidebar');
         [treeBox, adminBox].forEach(box => {
             // adminBox (aside.fi-sidebar) is absent in preview / setup-wizard mode,
             // and the tree box may not be mounted yet — skip any missing box so
@@ -192,6 +192,37 @@ export class LiveEditWidgetsService extends BaseComponent{
     }
 
     #mode = 'page';
+
+    // task-2026-11-09 — style the Quick-edit panel (its segmented mode control +
+    // scope tabs). Injected once into the TOP document (the control box lives
+    // there). Tokens fall back to literals so it renders on any template.
+    #injectQuickEditStyles() {
+        try {
+            const doc = mw.top().doc;
+            if (doc.getElementById('mw-qe-styles')) { return; }
+            const s = doc.createElement('style');
+            s.id = 'mw-qe-styles';
+            s.textContent = `
+.mw-qe-panel { padding: 2px 2px 4px; }
+.mw-qe-modebar { display:flex; gap:4px; padding:4px; margin:0 0 14px; background:var(--mw-bg-page,#eef1f5); border-radius:10px; }
+.mw-qe-mode { flex:1 1 0; display:inline-flex; align-items:center; justify-content:center; gap:7px; height:36px; padding:0 10px; border:none; border-radius:8px; background:transparent; color:var(--mw-text-muted,#5a6b7b); font-size:13px; font-weight:600; line-height:1; cursor:pointer; transition:background .15s ease,color .15s ease,box-shadow .15s ease; }
+.mw-qe-mode:hover { color:var(--mw-text-primary,#182433); }
+.mw-qe-mode.is-active { background:#fff; color:var(--mw-text-primary,#182433); box-shadow:0 1px 3px rgba(24,36,51,.14); }
+.mw-qe-mode svg { opacity:.85; flex:0 0 auto; }
+.dark .mw-qe-modebar { background:rgba(255,255,255,.07); }
+.dark .mw-qe-mode { color:#aeb6c2; }
+.dark .mw-qe-mode:hover { color:#e8eaed; }
+.dark .mw-qe-mode.is-active { background:#2a323c; color:#e8eaed; box-shadow:none; }
+/* scope tabs (Active layout / Whole page) — segmented pill to match */
+.mw-qe-panel > .flex.gap-4 { gap:6px !important; padding:4px; background:var(--mw-bg-page,#eef1f5); border-radius:9px; }
+.mw-qe-panel > .flex.gap-4 .btn { flex:1 1 0; min-height:34px; border:none; border-radius:7px; background:transparent; color:var(--mw-text-muted,#5a6b7b); font-size:12.5px; font-weight:600; box-shadow:none; }
+.mw-qe-panel > .flex.gap-4 .btn.active { background:#fff; color:var(--mw-text-primary,#182433); box-shadow:0 1px 3px rgba(24,36,51,.12); }
+.dark .mw-qe-panel > .flex.gap-4 { background:rgba(255,255,255,.07); }
+.dark .mw-qe-panel > .flex.gap-4 .btn.active { background:#2a323c; color:#e8eaed; box-shadow:none; }
+`;
+            doc.head.appendChild(s);
+        } catch (e) { /* styling is best-effort */ }
+    }
 
     openQuickEditComponent() {
         const isWholePage = mw.top().app.liveEditWidgets.quickEditComponent.settings.root === mw.top().app.canvas.getDocument().body;
@@ -299,36 +330,48 @@ export class LiveEditWidgetsService extends BaseComponent{
         // quick-edit box keeps the classic field editor; its "AI Chat" tab opens
         // that shared sidebar for the Live-Edit agent (with canvas edits), so
         // there is ONE chat surface across Live Edit and the admin.
-        const openAiSidebar = () => {
-            try {
-                window.dispatchEvent(new CustomEvent('mw:ai-chat:open', { detail: {
-                    agentType: 'liveedit', contentId: _contentId, canvas: true, title: mw.lang('AI Assistant'),
-                } }));
-            } catch (e) {}
-        };
+        // task-2026-11-07 — this panel is now FIELDS-ONLY ("Quick edit"). The AI
+        // chat is the primary surface opened by the right-rail button (the single
+        // AI entry point, docked sidebar); this field editor is reached from the
+        // "Quick edit" item in that sidebar's header dropdown. The old
+        // Edit-fields/AI-Chat mode bar is therefore removed. (_contentId is kept
+        // above for callers/back-compat.)
+        void _contentId;
+        const fieldsView = document.createElement('div');
+        fieldsView.classList.add('mw-qe-panel');
 
+        // task-2026-11-09 — the Quick-edit panel had NO way back to the AI chat
+        // (the sidebar's AI Chat/Quick edit mode dropdown lives on the chat
+        // surface, which this panel replaced), so a user who picked "Quick edit"
+        // was stuck here. Add a segmented mode control at the top mirroring that
+        // dropdown: "AI Chat" switches back (closes this panel + opens the chat),
+        // "Quick edit" is the current surface. Also gives the panel a styled head.
+        this.#injectQuickEditStyles();
         const modeBar = ElementManager(`
-            <div class="mw-ai-quick-modes flex gap-2 mb-3">
-                <button type="button" class="btn active" data-mode="fields">${mw.lang('Edit fields')}</button>
-                <button type="button" class="btn" data-mode="chat">${mw.lang('AI Chat')}</button>
+            <div class="mw-qe-modebar" role="tablist" aria-label="${mw.lang('Editing mode')}">
+                <button type="button" class="mw-qe-mode" role="tab" data-mw-qe-mode="ai-chat">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    <span>${mw.lang('AI Chat')}</span>
+                </button>
+                <button type="button" class="mw-qe-mode is-active" role="tab" aria-selected="true" data-mw-qe-mode="fields">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                    <span>${mw.lang('Quick edit')}</span>
+                </button>
             </div>
         `).get(0);
+        modeBar.querySelector('[data-mw-qe-mode="ai-chat"]').addEventListener('click', () => {
+            // Close this panel and hand back to the docked AI chat (canvas-coupled).
+            try { this.closeQuickEditComponent(); } catch (e) {}
+            try {
+                window.dispatchEvent(new CustomEvent('mw:ai-chat:open', {
+                    detail: { agentType: 'liveedit', canvas: true, title: mw.lang('AI assistant') },
+                }));
+            } catch (e) {}
+        });
+        fieldsView.appendChild(modeBar);
 
-        const fieldsView = document.createElement('div');
         fieldsView.appendChild(tabs);
         fieldsView.appendChild(this.quickEditComponent.editor());
-
-        modeBar.addEventListener('click', (e) => {
-            const btn = e.target.closest('button[data-mode]');
-            if (!btn) { return; }
-            // "AI Chat" opens the shared sidebar rather than embedding a chat here.
-            if (btn.dataset.mode === 'chat') { openAiSidebar(); return; }
-            modeBar.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            fieldsView.style.display = '';
-        });
-
-        box.boxContent.appendChild(modeBar);
         box.boxContent.appendChild(fieldsView);
 
         box.show();
@@ -359,8 +402,21 @@ export class LiveEditWidgetsService extends BaseComponent{
 
     openAdminSidebar() {
         this.closeAll();
+        // The Filament nav sidebar is `.fi-main-sidebar` (a <div> since Filament
+        // v5 — it used to be <aside class="fi-sidebar">, which is why the old
+        // selector matched nothing and the Admin button silently did nothing).
+        // It is still absent in preview / setup-wizard mode — fall back to simply
+        // navigating to the admin URL so the button always does something.
+        const adminSidebarEl = mw.top().doc.querySelector('.fi-main-sidebar');
+        if (!adminSidebarEl) {
+            this.status.adminSidebarOpened = false;
+            try {
+                const base = (window.mw && mw.settings && mw.settings.admin_url) || '/admin/';
+                mw.top().location.href = base;
+            } catch (e) { /* no-op */ }
+            return this;
+        }
         this.status.adminSidebarOpened = true;
-        const adminSidebarEl = mw.top().doc.querySelector('aside.fi-sidebar');
         adminSidebarEl.classList.add('active')
         // task-2026-09-24 — pin the admin nav as a LEFT drawer below the toolbar.
         // NO transform / NO transition: Filament's base `transition:all` animated
@@ -394,7 +450,7 @@ export class LiveEditWidgetsService extends BaseComponent{
         // (which left a black gap on the left). The Layers panel keeps its left
         // shift because it only sets `mw-live-edit-sidebar-start`.
         mw.top().doc.documentElement.classList.add( 'mw-live-edit-sidebar-start', 'mw-live-edit-admin-open');
-        this.#zIndex(mw.top().doc.querySelector('aside.fi-sidebar'));
+        this.#zIndex(mw.top().doc.querySelector('.fi-main-sidebar'));
         // Flip Filament's Alpine sidebar store to "open" so the sidebar renders
         // EXPANDED: item labels show (x-show="$store.sidebar.isOpen") AND grouped
         // nav (Website / Shop) renders as labelled headers with their sub-items
@@ -475,7 +531,7 @@ export class LiveEditWidgetsService extends BaseComponent{
             return this;
         }
         this.status.adminSidebarOpened = false;
-        const sb = mw.top().doc.querySelector('aside.fi-sidebar');
+        const sb = mw.top().doc.querySelector('.fi-main-sidebar');
         // task-2026-09-24 — instant teardown (no slide). Hide first (.active
         // removed), then clear the drawer inline styles; with no transition there's
         // no fly-out and no "collapses to an icon strip in the middle" flash.
